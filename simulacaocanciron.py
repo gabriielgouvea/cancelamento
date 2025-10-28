@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, Toplevel, Entry, Button
 from datetime import date
 from dateutil.relativedelta import relativedelta
-from docx import Document
+# Removido 'Document' e 'convert' pois não são mais necessários aqui
 import os
 import sys
-from docxtopdf import convert
+# NOVAS IMPORTAÇÕES PARA A API
+import requests
+import json
 
 # --- Variáveis Globais ---
 calculo_resultado = {}
@@ -25,7 +27,7 @@ PLANOS = {
     'Semestral (6 meses)': {'valor': 499.00, 'duracao': 6}
 }
 
-# --- FUNÇÕES DE VALIDAÇÃO ---
+# --- FUNÇÕES DE VALIDAÇÃO (Sem alteração) ---
 def validar_matricula(P):
     if len(P) > 6: return False
     if str.isdigit(P) or P == "": return True
@@ -49,7 +51,7 @@ def validar_cpf_algoritmo(cpf):
     except ValueError: return False
     return True
 
-# --- FUNÇÃO PARA FORMATAR A DATA ---
+# --- FUNÇÃO PARA FORMATAR A DATA (Sem alteração) ---
 def formatar_data(event):
     texto_atual = entry_data_inicio.get()
     numeros = "".join(filter(str.isdigit, texto_atual))
@@ -61,7 +63,7 @@ def formatar_data(event):
     entry_data_inicio.insert(0, data_formatada)
     entry_data_inicio.icursor(tk.END)
 
-# --- LÓGICA DE CÁLCULO ATUALIZADA ---
+# --- LÓGICA DE CÁLCULO ATUALIZADA (Sem alteração) ---
 def logica_de_calculo(data_inicio, tipo_plano_str, parcelas_em_atraso_str, pagamento_hoje_confirmado=None):
     try:
         dados_retorno = {}
@@ -103,7 +105,7 @@ def logica_de_calculo(data_inicio, tipo_plano_str, parcelas_em_atraso_str, pagam
     except Exception as e:
         return {'erro_geral': f"Erro nos dados de entrada. Verifique a data e os números.\nDetalhe: {e}"}
 
-# --- FUNÇÕES DA INTERFACE GRÁFICA ---
+# --- FUNÇÕES DA INTERFACE GRÁFICA (executar_calculo, limpar_campos, copiar_texto_...) (Sem alteração) ---
 def executar_calculo():
     global calculo_resultado
     data_inicio_str = entry_data_inicio.get(); tipo_plano = combo_plano.get(); parcelas_atrasadas = entry_parcelas_atraso.get()
@@ -165,6 +167,35 @@ def copiar_texto_cliente():
     texto_formatado = (f"*INFORMAÇÕES CANCELAMENTO*\n\n- Nome: {nome_cliente}\n- Matricula: {matricula}\n\n*💸 VALORES*\n- Parcelas vencidas: R$ {calculo_resultado['valor_atrasado']:.2f} ({calculo_resultado['parcelas_atrasadas_qtd']} Parcelas)\n{linha_proxima_parcela}- Valor da multa: R$ {calculo_resultado['valor_multa']:.2f} (10% de {calculo_resultado['meses_para_multa']} Meses)\n> TOTAL A SER PAGO: *R$ {calculo_resultado['total_a_pagar']:.2f}*\n\nApós o cancelamento, *seu acesso permanecerá ativo até*: {calculo_resultado['data_acesso_final'].strftime('%d/%m/%Y')}")
     app.clipboard_clear(); app.clipboard_append(texto_formatado)
 
+# --- NOVA FUNÇÃO HELPER ---
+# Esta função cria a janela para mostrar o link gerado
+def mostrar_janela_com_link(link):
+    janela_link = Toplevel(app) # 'app' é a janela principal
+    janela_link.title("Link Gerado com Sucesso!")
+    janela_link.geometry("400x150")
+    janela_link.resizable(False, False)
+
+    tk.Label(janela_link, text="Envie este link para o cliente:", font=("Arial", 10)).pack(pady=10)
+    
+    entry_link = tk.Entry(janela_link, width=60)
+    entry_link.insert(0, link)
+    entry_link.pack(padx=10, pady=5)
+    entry_link.config(state="readonly") # Deixa o campo apenas para leitura
+
+    def copiar_link():
+        janela_link.clipboard_clear()
+        janela_link.clipboard_append(link)
+        botao_copiar.config(text="Copiado!")
+
+    botao_copiar = tk.Button(janela_link, text="Copiar Link", command=copiar_link)
+    botao_copiar.pack(pady=10)
+    
+    janela_link.transient(app) # Mantém a janela no topo
+    janela_link.grab_set() # Torna a janela modal
+    app.wait_window(janela_link) # Espera o usuário fechar esta janela
+
+# --- FUNÇÃO MODIFICADA ---
+# Esta é a função que gera o popup do CPF
 def gerar_documento_popup():
     if 'total_a_pagar' not in calculo_resultado: messagebox.showerror("Erro", "Execute um cálculo válido primeiro."); return
     nome_cliente = entry_nome_cliente.get(); matricula = entry_matricula.get()
@@ -174,44 +205,68 @@ def gerar_documento_popup():
     tk.Label(popup, text="Digite o CPF do Cliente:", font=("Arial", 10)).pack(pady=10)
     vcmd_cpf = (popup.register(validar_cpf_input), '%P')
     entry_cpf_popup = tk.Entry(popup, width=30, validate="key", validatecommand=vcmd_cpf); entry_cpf_popup.pack(pady=5); entry_cpf_popup.focus_set()
-
+    
+    # Esta função é chamada pelo botão "Confirmar"
     def finalizar_geracao():
         cpf_cliente = entry_cpf_popup.get()
-        if not validar_cpf_algoritmo(cpf_cliente): messagebox.showerror("CPF Inválido", "O CPF digitado não é válido.", parent=popup); return
-        popup.destroy()
-        try:
-            if getattr(sys, 'frozen', False): base_path = sys._MEIPASS
-            else: base_path = os.path.dirname(__file__)
-            modelo_path = os.path.join(base_path, "modelo_final.docx")
-            doc = Document(modelo_path)
-            
-            # --- INÍCIO DA CORREÇÃO ---
-            # Limpa o nome do cliente para que seja um nome de arquivo válido
-            caracteres_invalidos = '<>:"/\\|?*\n\r\t'
-            nome_cliente_para_arquivo = nome_cliente
-            for char in caracteres_invalidos:
-                nome_cliente_para_arquivo = nome_cliente_para_arquivo.replace(char, ' ').strip()
-            # --- FIM DA CORREÇÃO ---
+        if not validar_cpf_algoritmo(cpf_cliente): 
+            messagebox.showerror("CPF Inválido", "O CPF digitado não é válido.", parent=popup)
+            return
 
-            substituicoes = {"NOME_CLIENTE": nome_cliente.upper(), "CPF_CLIENTE": cpf_cliente, "MATRICULA_CLIENTE": matricula, "DATA_INICIO_CONTRATO": calculo_resultado['data_inicio_contrato'].strftime('%d/%m/%Y'), "VALOR_TOTAL": f"R$ {calculo_resultado['valor_multa']:.2f}", "DATA_SOLICITACAO": calculo_resultado['data_simulacao'].strftime('%d/%m/%Y'), "NOME_CONSULTOR": consultor_selecionado.upper()}
-            for p in doc.paragraphs:
-                for run in p.runs:
-                    for key, value in substituicoes.items():
-                        if key in run.text: run.text = run.text.replace(key, value)
+        # --- 1. COLETAR DADOS ---
+        # Esses dados já estão disponíveis no escopo
+        
+        # O servidor AssinaGym espera essas chaves.
+        # Estamos mapeando nossos dados para o que o servidor espera.
+        dados_para_enviar = {
+            "nome": nome_cliente.upper(),
+            "cpf": cpf_cliente,
+            "matricula": matricula,
+            # O servidor espera 'valor_multa' para o texto "EFETUEI O PAGAMENTO NO VALOR DE R$..."
+            # Estamos passando o 'total_a_pagar' do nosso cálculo para esse campo.
+            "valor_multa": f"{calculo_resultado['total_a_pagar']:.2f}", 
+            "data_inicio_contrato": calculo_resultado['data_inicio_contrato'].strftime('%d/%m/%Y'),
+            "consultor": consultor_selecionado.upper()
+        }
+        
+        # Fecha a janela popup do CPF
+        popup.destroy()
+
+        # --- 2. NOVA LÓGICA DE API (Substitui a geração de DOCX/PDF) ---
+        try:
+            # A URL do seu servidor AssinaGym (deve estar rodando)
+            url_api = "https://assinagym.onrender.com/api/gerar-link"
             
-            pasta_downloads = os.path.join(os.path.expanduser('~'), 'Downloads')
-            # Usa o nome limpo para criar o arquivo
-            nome_arquivo_base = f"Cancelamento - {nome_cliente_para_arquivo}"
-            caminho_saida_docx = os.path.join(pasta_downloads, f"{nome_arquivo_base}.docx")
-            caminho_saida_pdf = os.path.join(pasta_downloads, f"{nome_arquivo_base}.pdf")
-            doc.save(caminho_saida_docx)
-            convert(caminho_saida_docx, caminho_saida_pdf)
-            os.remove(caminho_saida_docx)
-            messagebox.showinfo("Sucesso", f"Documento PDF gerado com sucesso!\nSalvo em: {caminho_saida_pdf}")
-        except FileNotFoundError: messagebox.showerror("Erro Crítico", "O arquivo 'modelo_final.docx' não foi encontrado.")
-        except Exception as e: messagebox.showerror("Erro ao Gerar Documento", f"Ocorreu um erro inesperado:\n{e}")
-    
-    botao_confirmar = tk.Button(popup, text="Confirmar e Gerar PDF", command=finalizar_geracao, font=("Arial", 10, "bold"), bg="#4CAF50", fg="white")
+            # Mostra uma mensagem de "carregando"
+            app.config(cursor="watch")
+            app.update_idletasks()
+            
+            # Envia os dados para o servidor
+            response = requests.post(url_api, json=dados_para_enviar)
+            
+            # Restaura o cursor
+            app.config(cursor="")
+            
+            # Processa a resposta do servidor
+            if response.status_code == 200:
+                resposta_json = response.json()
+                link_assinatura = resposta_json.get("link_assinatura")
+                
+                # 4. Mostra o link em uma nova janela
+                mostrar_janela_com_link(link_assinatura)
+            else:
+                messagebox.showerror("Erro de Servidor", f"O servidor respondeu com um erro: {response.status_code}\n{response.text}")
+
+        except requests.exceptions.ConnectionError:
+            app.config(cursor="")
+            messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao servidor AssinaGym.\nVerifique se o servidor está rodando (com o comando 'flask run').")
+        except Exception as e:
+            app.config(cursor="")
+            messagebox.showerror("Erro Inesperado", f"Ocorreu um erro: {e}")
+        # --- FIM DA NOVA LÓGICA ---
+
+    # Atualiza o texto do botão
+    botao_confirmar = tk.Button(popup, text="Confirmar e Gerar Link", command=finalizar_geracao, font=("Arial", 10, "bold"), bg="#4CAF50", fg="white")
     botao_confirmar.pack(pady=10)
 
 def mostrar_calculadora():
@@ -267,8 +322,9 @@ botao_copiar_gerencia = tk.Button(frame_botoes_copiar, text="Copiar (Pendências
 botao_copiar_gerencia.pack(side="left", padx=5)
 botao_copiar_cliente = tk.Button(frame_botoes_copiar, text="Copiar Detalhes", command=copiar_texto_cliente, font=("Arial", 10, "bold"), bg="#007bff", fg="white", width=22)
 botao_copiar_cliente.pack(side="right", padx=5)
-botao_gerar_docx = tk.Button(frame_whatsapp, text="Gerar Documento PDF", command=gerar_documento_popup, font=("Arial", 10, "bold"), bg="#c0392b", fg="white", width=46)
-botao_gerar_docx.grid(row=6, column=0, columnspan=3, pady=(5,0))
+# ATUALIZA O TEXTO DO BOTÃO
+botao_gerar_link = tk.Button(frame_whatsapp, text="Gerar Link de Assinatura", command=gerar_documento_popup, font=("Arial", 10, "bold"), bg="#c0392b", fg="white", width=46)
+botao_gerar_link.grid(row=6, column=0, columnspan=3, pady=(5,0))
 
 # --- INICIA A APLICAÇÃO ---
 login_frame.pack(pady=100)
