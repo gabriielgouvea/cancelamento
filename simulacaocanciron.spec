@@ -5,7 +5,7 @@ a = Analysis(
     ['simulacaocanciron.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('modelo_final.docx', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
