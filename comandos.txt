@@ -1,0 +1,5 @@
+pyinstaller --onefile --windowed --name=Veritas --add-data "modelo_final.docx;." simulacaocanciron.py
+
+python -m venv venv
+
+.\venv\scripts\activate
