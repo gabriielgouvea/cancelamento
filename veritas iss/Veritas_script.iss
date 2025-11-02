@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Veritas"
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "4.0.0"
 #define MyAppPublisher "gabriel gouvea"
 #define MyAppExeName "Veritas.exe"
 
@@ -42,8 +42,13 @@ Name: "portuguese"; MessagesFile: "compiler:Languages\Portuguese.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "C:\cancelamento\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-; NOTE: Don't use "Flags: ignoreversion" on any shared system files
+; 1. Copia todos os arquivos e subpastas da pasta de DISTRIBUIÇÃO do PyInstaller
+; (Isso inclui o Veritas.exe, e todos os arquivos internos e .dlls)
+Source: "C:\cancelamento\dist\Veritas\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+
+; 2. Copia a pasta 'data' completa da raiz do projeto para a pasta de instalação
+; (Isso garante que o consultores.json e as imagens estejam no local certo: {app}\data)
+Source: "C:\cancelamento\data\*"; DestDir: "{app}\data"; Flags: recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
