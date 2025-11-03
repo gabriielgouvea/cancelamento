@@ -33,7 +33,7 @@ except ImportError:
 import shutil 
 
 # --- Variáveis Globais e Constantes ---
-APP_VERSION = "4.0.0-Crash-Fix" 
+APP_VERSION = "4.0.1-Crash-Fix" 
 VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/veritas/main/version.json" 
 
 # CORREÇÃO: Define o caminho da pasta 'data'
@@ -480,10 +480,8 @@ class App(ttk.Window):
 
         ttk.Label(form_frame, text="Selecione ou digite seu nome:", font=self.FONT_MAIN).pack(anchor='w')
         
-        self.combo_consultor_login = ttk.Combobox(form_frame, values=self.nomes_consultores, width=35, font=self.FONT_MAIN, state="normal")
+        self.combo_consultor_login = ttk.Combobox(form_frame, values=self.nomes_consultores, width=35, font=self.FONT_MAIN, state="readonly")
         self.combo_consultor_login.pack(pady=(5, 15))
-        self.combo_consultor_login.bind('<KeyRelease>', self.filtrar_combobox)
-        self.combo_consultor_login.bind('<Button-1>', self.on_login_combobox_click)
         
         def on_login():
             global consultor_selecionado, consultor_logado_data
@@ -511,23 +509,6 @@ class App(ttk.Window):
             self.show_view("simulador")
 
         ttk.Button(form_frame, text="Entrar", command=on_login, style='success.TButton', width=35, bootstyle="success-solid").pack(pady=10, ipady=5)
-
-    def filtrar_combobox(self, event=None):
-        """Filtra a lista do combobox de login em tempo real."""
-        texto_digitado = self.combo_consultor_login.get().upper()
-        
-        if not texto_digitado:
-            self.combo_consultor_login['values'] = self.nomes_consultores
-        else:
-            nomes_filtrados = [nome for nome in self.nomes_consultores if texto_digitado in nome.upper()]
-            self.combo_consultor_login['values'] = nomes_filtrados
-            
-    def on_login_combobox_click(self, event=None):
-        """Força o dropdown do combobox a aparecer ao clicar."""
-        if 'popdown' in self.combo_consultor_login.state():
-            return
-        self.combo_consultor_login.event_generate('<Down>')
-
 
     # --- Popups (Seus métodos originais) ---
     def _center_popup(self, popup, width, height):
@@ -620,9 +601,8 @@ class App(ttk.Window):
             
             nome_cliente = self.entry_nome_cliente.get().split(' ')[0] 
             
-            mensagem_completa = (f"Olá {nome_cliente}!\n\n"
-                                 "Para prosseguir com o cancelamento da sua matrícula, "
-                                 "preciso que preencha as informações e assine "
+            mensagem_completa = (f"Para prosseguir com o cancelamento da sua matrícula, "
+                                 "Preciso que preencha as informações e assine "
                                  f"através deste link: {link}\n\n"
                                  "Por favor, me mande o PDF assim que finalizar, ok? 😉")
             self.clipboard_clear(); self.clipboard_append(mensagem_completa)
