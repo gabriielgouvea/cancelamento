@@ -4,20 +4,29 @@ import os
 
 a = Analysis(
     ['simulacaocanciron.py'],
-    pathex=[],  # Correto!
+    pathex=[],
     binaries=[],
     datas=[ ('data', 'data') ],
     hiddenimports=[
         'ttkbootstrap',
         'piexif',
-        'PIL',  # Nome alternativo para Pillow
+        'PIL', 
         'dateutil.relativedelta',
         'pdfplumber',
         'pdfminer',
         'pdfminer.six',
         'chardet',
         'Crypto',
-        'PyCryptodome' # Nome alternativo para Crypto
+        'PyCryptodome',
+        # --- NOVOS HIDDEN IMPORTS ---
+        'selenium',
+        'webdriver_manager',
+        'beautifulsoup4',
+        'bs4',
+        'packaging',
+        'packaging.version',
+        'packaging.specifiers'
+        # --- FIM DOS NOVOS IMPORTS ---
     ],
     hookspath=[],
     hooksconfig={},
@@ -38,13 +47,12 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,
+    console=False, # Mantenha como False para não abrir um console
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # A linha do ícone foi removida
 )
 coll = COLLECT(
     exe,
