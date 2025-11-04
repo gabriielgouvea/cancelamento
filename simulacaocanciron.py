@@ -43,8 +43,6 @@ try:
     from selenium.webdriver.chrome.service import Service as ChromeService
     from webdriver_manager.chrome import ChromeDriverManager
     from bs4 import BeautifulSoup
-    import multiprocessing
-    multiprocessing.freeze_support()
 except ImportError:
     messagebox.showerror("Erro de Dependência (Selenium)", 
                          "Bibliotecas para a consulta CREF não encontradas.\n\n"
@@ -55,7 +53,7 @@ except ImportError:
 
 
 # --- Variáveis Globais e Constantes ---
-APP_VERSION = "4.1.2-CREF-Headless" # --- ALTERADO ---
+APP_VERSION = "4.1.1-CREF-Headless" # --- ALTERADO ---
 VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/veritas/main/version.json"
 
 # CORREÇÃO: Define o caminho da pasta 'data'
