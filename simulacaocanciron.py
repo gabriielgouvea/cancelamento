@@ -2,11 +2,12 @@
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from ttkbootstrap.toast import ToastNotification
+# Importamos Panedwindow (com W maiúsculo) do ttkbootstrap, que é o correto
 from ttkbootstrap.widgets import Panedwindow
 from ttkbootstrap.scrolled import ScrolledFrame
 from tkinter import messagebox, Toplevel, Entry, Button, StringVar, scrolledtext, \
                     PhotoImage, Listbox, filedialog, END, ANCHOR
-from datetime import date, datetime
+from datetime import date, datetime 
 from dateutil.relativedelta import relativedelta
 import os
 import sys
@@ -18,7 +19,7 @@ import csv
 import traceback # Para capturar erros do PDF
 try:
     from PIL import Image, ImageTk, ImageDraw, ImageOps
-    import piexif
+    import piexif 
 except ImportError:
     messagebox.showerror("Erro de Dependência", "Pillow e Piexif são necessários. Rode 'pip install Pillow piexif'")
 
@@ -29,43 +30,22 @@ except ImportError:
     messagebox.showerror("Erro de Arquivo", "Arquivo 'calculadora_core.py' não encontrado.\n\nCertifique-se que ele está na mesma pasta que 'testesimulacao.py'.")
     sys.exit()
 
-import shutil
-
-# --- NOVAS IMPORTAÇÕES (PARA O CREF) ---
-import threading
-import time
-try:
-    from selenium import webdriver
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.common.exceptions import TimeoutException, WebDriverException
-    from selenium.webdriver.chrome.service import Service as ChromeService
-    from webdriver_manager.chrome import ChromeDriverManager
-    from bs4 import BeautifulSoup
-except ImportError:
-    messagebox.showerror("Erro de Dependência (Selenium)", 
-                         "Bibliotecas para a consulta CREF não encontradas.\n\n"
-                         "Por favor, rode no seu terminal:\n"
-                         "pip install selenium webdriver-manager beautifulsoup4")
-    sys.exit()
-# --- FIM DAS NOVAS IMPORTAÇÕES ---
-
+import shutil 
 
 # --- Variáveis Globais e Constantes ---
-APP_VERSION = "4.1.1-CREF-Headless" # --- ALTERADO ---
-VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/veritas/main/version.json"
+APP_VERSION = "4.0.1-Crash-Fix" 
+VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/veritas/main/version.json" 
 
 # CORREÇÃO: Define o caminho da pasta 'data'
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_FOLDER_PATH = os.path.join(SCRIPT_PATH, "data") # Pasta para todos os dados
 CONSULTORES_JSON_PATH = os.path.join(DATA_FOLDER_PATH, "consultores.json") # Caminho completo do JSON
-FOLGAS_JSON_PATH = os.path.join(DATA_FOLDER_PATH, "folgas.json")
+FOLGAS_JSON_PATH = os.path.join(DATA_FOLDER_PATH, "folgas.json") 
 
 calculo_resultado = {}
 consultor_selecionado = None
-consultor_logado_data = {}
-PROFILE_PIC_SIZE = (96, 96)
+consultor_logado_data = {} 
+PROFILE_PIC_SIZE = (96, 96) 
 ICON_SIZE = (22, 22)
 
 PLANOS = {
@@ -81,7 +61,7 @@ MOTIVOS_CANCELAMENTO = [
     "OUTROS"
 ]
 
-# --- Lógica de Dados (Sem alterações) ---
+# --- Lógica de Dados ---
 def carregar_consultores():
     try:
         with open(CONSULTORES_JSON_PATH, 'r', encoding='utf-8') as f:
@@ -126,7 +106,7 @@ def salvar_folgas(dados_folgas):
         messagebox.showerror("Erro ao Salvar Folgas", f"Não foi possível salvar {FOLGAS_JSON_PATH}: {e}")
         return False
 
-# --- FUNÇÕES AUXILIARES (Lógica e Validação) (Sem alterações) ---
+# --- FUNÇÕES AUXILIARES (Lógica e Validação) ---
 def check_for_updates():
     try:
         response = requests.get(VERSION_URL, timeout=10); response.raise_for_status()
@@ -225,17 +205,17 @@ class App(ttk.Window):
         self.FONT_MAIN = ("Helvetica", 11)
         self.FONT_BOLD = ("Helvetica", 11, "bold")
         self.FONT_TITLE = ("Helvetica", 18, "bold")
-        self.FONT_TITLE_LOGIN = ("Helvetica", 32, "bold")
-        self.FONT_SMALL = ("Helvetica", 9)
+        self.FONT_TITLE_LOGIN = ("Helvetica", 32, "bold") 
+        self.FONT_SMALL = ("Helvetica", 9) 
         
         self.COLOR_SIDEBAR_LIGHT = "#ffffff"
         self.COLOR_BTN_HOVER_LIGHT = "#f0f0f0"
-        self.COLOR_BTN_SELECTED_LIGHT = "#e0eafb"
+        self.COLOR_BTN_SELECTED_LIGHT = "#e0eafb" 
         self.COLOR_TEXT_LIGHT = "#212529"
         
         # --- Configuração da Janela ---
-        self.title(f"Veritas | Sistema de Gestão v{APP_VERSION}") # --- ALTERADO ---
-        self.state('zoomed')
+        self.title(f"Veritas | Sistema de Gestão v{APP_VERSION}") 
+        self.state('zoomed') 
         self.resizable(True, True)
 
         self.grid_rowconfigure(0, weight=1)
@@ -255,10 +235,10 @@ class App(ttk.Window):
         self.create_custom_styles()
 
         # --- SIDEBAR (Menu) ---
-        self.sidebar_frame = ttk.Frame(self, style='Sidebar.TFrame', width=300)
+        self.sidebar_frame = ttk.Frame(self, style='Sidebar.TFrame', width=300) 
         self.sidebar_frame.grid(row=0, column=0, sticky="ns")
-        self.sidebar_frame.grid_propagate(False)
-        self.sidebar_frame.grid_rowconfigure(9, weight=1) 
+        self.sidebar_frame.grid_propagate(False) 
+        self.sidebar_frame.grid_rowconfigure(9, weight=1) # Ajustado para novo layout
 
         # --- ÁREA DE CONTEÚDO PRINCIPAL ---
         self.main_frame = ttk.Frame(self)
@@ -275,7 +255,7 @@ class App(ttk.Window):
 
         # --- Iniciar na Tela de Login ---
         self.show_login_view()
-        self.style.theme_use('flatly')
+        self.style.theme_use('flatly') 
         
 
     def load_images(self):
@@ -285,36 +265,46 @@ class App(ttk.Window):
         draw = ImageDraw.Draw(placeholder_img)
         draw.ellipse((0, 0, PROFILE_PIC_SIZE[0], PROFILE_PIC_SIZE[1]), fill='#cccccc')
         self.default_profile_photo = ImageTk.PhotoImage(placeholder_img)
-        self.dev_preview_photo_tk = self.default_profile_photo
+        self.dev_preview_photo_tk = self.default_profile_photo 
 
         self.default_icon = ImageTk.PhotoImage(Image.new('RGBA', ICON_SIZE, (0,0,0,0)))
 
-        self.profile_photo = self.default_profile_photo
+        self.profile_photo = self.default_profile_photo 
 
-        try:
+        try: 
             self.icon_simulador = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "calculator.png")).resize(ICON_SIZE))
             self.icon_comissao = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "commission.png")).resize(ICON_SIZE))
             self.icon_folgas = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "days_off.png")).resize(ICON_SIZE))
             self.icon_updates = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "updates.png")).resize(ICON_SIZE))
             self.icon_developer = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "developer.png")).resize(ICON_SIZE))
-            self.icon_cref = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "cref_icon.png")).resize(ICON_SIZE))
         except Exception as e:
             messagebox.showerror("Erro ao Carregar Ícones", f"Não foi possível carregar alguns ícones da pasta 'data'.\n\nVerifique se os ícones necessários estão na pasta 'data'.\n\nErro: {e}")
             self.icon_simulador = self.icon_comissao = self.icon_folgas = self.default_icon
             self.icon_updates = self.icon_developer = self.default_icon
-            self.icon_cref = self.default_icon
         
-        try:
+        # --- *** CORREÇÃO: REDIMENSIONAR A LOGO *** ---
+        try: 
             img_logo_original = Image.open(os.path.join(DATA_FOLDER_PATH, "logo_completa.png"))
+            
+            # Pega o tamanho original
             original_width, original_height = img_logo_original.size
-            max_width = 500
+            
+            # Define a largura máxima que queremos para a logo
+            max_width = 500 
+            
+            # Calcula a nova altura mantendo a proporção
             ratio = max_width / float(original_width)
             new_height = int(float(original_height) * float(ratio))
+            
+            # Redimensiona a imagem com alta qualidade (LANCZOS)
             img_logo_resized = img_logo_original.resize((max_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Converte para PhotoImage
             self.logo_login = ImageTk.PhotoImage(img_logo_resized)
+            
         except Exception as e:
             print(f"AVISO: Não foi possível carregar a logo_completa.png: {e}")
-            self.logo_login = None
+            self.logo_login = None # Define como None se falhar
 
     def load_profile_picture(self, foto_path, size=PROFILE_PIC_SIZE, is_dev_preview=False):
         """Carrega e aplica a foto de perfil do consultor, agora circular."""
@@ -345,10 +335,10 @@ class App(ttk.Window):
             loaded_photo = ImageTk.PhotoImage(placeholder_img)
         
         if is_dev_preview:
-            self.dev_preview_photo_tk = loaded_photo
+            self.dev_preview_photo_tk = loaded_photo 
             self.dev_foto_label.config(image=self.dev_preview_photo_tk)
         else:
-            self.profile_photo = loaded_photo
+            self.profile_photo = loaded_photo 
             self.profile_pic_label.config(image=self.profile_photo)
     
     def fix_image_rotation(self, img):
@@ -357,7 +347,7 @@ class App(ttk.Window):
             exif = piexif.load(img.info['exif'])
             orientation = exif['0th'][piexif.ImageIFD.Orientation]
         except (KeyError, AttributeError, TypeError, ValueError):
-            orientation = 1
+            orientation = 1 
         if orientation == 3: img = img.rotate(180, expand=True)
         elif orientation == 6: img = img.rotate(270, expand=True)
         elif orientation == 8: img = img.rotate(90, expand=True)
@@ -371,13 +361,13 @@ class App(ttk.Window):
         style.configure('Sidebar.TFrame', background=self.COLOR_SIDEBAR_LIGHT)
         style.configure('Sidebar.TLabel', background=self.COLOR_SIDEBAR_LIGHT, foreground=self.COLOR_TEXT_LIGHT, font=self.FONT_BOLD)
 
-        style.configure('Nav.Toolbutton',
-                        background=self.COLOR_SIDEBAR_LIGHT,
+        style.configure('Nav.Toolbutton', 
+                        background=self.COLOR_SIDEBAR_LIGHT, 
                         foreground=self.COLOR_TEXT_LIGHT,
                         anchor='w', compound='left', padding=(15, 10),
                         font=self.FONT_MAIN, borderwidth=0)
         style.map('Nav.Toolbutton',
-                  background=[('active', self.COLOR_BTN_HOVER_LIGHT),
+                  background=[('active', self.COLOR_BTN_HOVER_LIGHT), 
                               ('selected', self.COLOR_BTN_SELECTED_LIGHT)],
                   foreground=[('selected', self.COLOR_TEXT_LIGHT)])
 
@@ -387,45 +377,44 @@ class App(ttk.Window):
         
         self.profile_frame = ttk.Frame(self.sidebar_frame, style='Sidebar.TFrame')
         self.profile_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 10))
-        self.profile_frame.grid_columnconfigure(0, weight=1)
+        self.profile_frame.grid_columnconfigure(0, weight=1) 
 
         self.profile_pic_label = ttk.Label(self.profile_frame, image=self.profile_photo, background=self.COLOR_SIDEBAR_LIGHT)
-        self.profile_pic_label.grid(row=0, column=0, pady=(0, 10))
+        self.profile_pic_label.grid(row=0, column=0, pady=(0, 10)) 
 
         self.consultant_label = ttk.Label(self.profile_frame, text="Bem-vindo", style='Sidebar.TLabel', font=self.FONT_BOLD)
-        self.consultant_label.grid(row=1, column=0, pady=(0, 5))
+        self.consultant_label.grid(row=1, column=0, pady=(0, 5)) 
 
-        self.trocar_consultor_button = ttk.Button(self.profile_frame, text="Fazer Login",
-                                                 command=self.show_login_view, style='Link.TButton')
-        self.trocar_consultor_button.grid(row=2, column=0, pady=(0, 10))
+        self.trocar_consultor_button = ttk.Button(self.profile_frame, text="Fazer Login", 
+                                                  command=self.show_login_view, style='Link.TButton')
+        self.trocar_consultor_button.grid(row=2, column=0, pady=(0, 10)) 
         
         ttk.Separator(self.sidebar_frame).grid(row=1, column=0, sticky='ew', padx=10, pady=10)
         
         # --- BOTÕES DE NAVEGAÇÃO ---
         self.nav_var = StringVar()
-        self.nav_buttons = {}
+        self.nav_buttons = {} 
 
         def create_nav_button(row, text, value, icon):
-            btn = ttk.Radiobutton(self.sidebar_frame,
-                                  text=text,
+            btn = ttk.Radiobutton(self.sidebar_frame, 
+                                  text=text, 
                                   image=icon,
-                                  variable=self.nav_var,
-                                  value=value,
+                                  variable=self.nav_var, 
+                                  value=value, 
                                   command=self.on_nav_select,
                                   style='Nav.Toolbutton') # Estilo principal
             btn.grid(row=row, column=0, sticky="ew", padx=10, pady=2)
-            self.nav_buttons[value] = btn
+            self.nav_buttons[value] = btn 
         
         # --- BOTÕES DO MENU ATUALIZADOS ---
         create_nav_button(2, "Simulador", "simulador", self.icon_simulador)
         create_nav_button(3, "Calculadora Comissão", "comissao", self.icon_comissao)
         create_nav_button(4, "Folgas", "folgas", self.icon_folgas)
-        create_nav_button(5, "Consulta CREF", "cref", self.icon_cref)
-        create_nav_button(6, "Área do Desenvolvedor", "developer", self.icon_developer)
-        create_nav_button(7, "Verificar Atualizações", "updates", self.icon_updates)
+        create_nav_button(5, "Área do Desenvolvedor", "developer", self.icon_developer)
+        create_nav_button(6, "Verificar Atualizações", "updates", self.icon_updates)
         
-        self.sidebar_frame.grid_rowconfigure(8, weight=1) 
-        ttk.Separator(self.sidebar_frame).grid(row=9, column=0, sticky='sew', padx=10, pady=10)
+        self.sidebar_frame.grid_rowconfigure(7, weight=1) # Ajusta o peso para a nova qtd
+        ttk.Separator(self.sidebar_frame).grid(row=8, column=0, sticky='sew', padx=10, pady=10) # Ajusta a linha do separador
 
 
     def on_nav_select(self):
@@ -435,12 +424,12 @@ class App(ttk.Window):
         if view_name == "updates":
             check_for_updates()
             if hasattr(self, '_last_selected_nav'): self.nav_var.set(self._last_selected_nav)
-            else: self.nav_var.set("")
+            else: self.nav_var.set("") 
         elif view_name == "developer":
             pin_ok = self.show_developer_login()
             if pin_ok:
                 self.show_view("developer_area")
-                self._last_selected_nav = "developer_area"
+                self._last_selected_nav = "developer_area" 
             else:
                 if hasattr(self, '_last_selected_nav'): self.nav_var.set(self._last_selected_nav)
                 else: self.nav_var.set("")
@@ -462,7 +451,6 @@ class App(ttk.Window):
             "simulador": self.create_cancellation_view,
             "comissao": self.create_comissao_view,
             "folgas": self.create_folgas_view,
-            "cref": self.create_cref_view, # --- NOVO ---
             "developer_area": self.create_developer_area_view
         }
         
@@ -479,9 +467,12 @@ class App(ttk.Window):
         login_container = ttk.Frame(self.main_frame)
         login_container.pack(expand=True)
         
+        # --- MOSTRA A LOGO OU O TEXTO ---
         if hasattr(self, 'logo_login') and self.logo_login:
+            # Se a imagem da logo foi carregada, mostre-a
             ttk.Label(login_container, image=self.logo_login).pack(pady=(0, 25))
         else:
+            # Senão, mostre o texto original como fallback
             ttk.Label(login_container, text="Sistema Veritas", font=self.FONT_TITLE_LOGIN).pack(pady=(0, 25))
 
         form_frame = ttk.Frame(login_container)
@@ -510,16 +501,16 @@ class App(ttk.Window):
 
             self.consultant_label.config(text=consultor_logado_data['nome'])
             self.load_profile_picture(consultor_logado_data['foto_path'])
-            self.trocar_consultor_button.config(text="Trocar Consultor")
+            self.trocar_consultor_button.config(text="Trocar Consultor") 
             
             self.sidebar_frame.grid()
-            self.nav_var.set("simulador")
-            self._last_selected_nav = "simulador"
+            self.nav_var.set("simulador") 
+            self._last_selected_nav = "simulador" 
             self.show_view("simulador")
 
         ttk.Button(form_frame, text="Entrar", command=on_login, style='success.TButton', width=35, bootstyle="success-solid").pack(pady=10, ipady=5)
 
-    # --- Popups (Seus métodos originais) (Sem alterações) ---
+    # --- Popups (Seus métodos originais) ---
     def _center_popup(self, popup, width, height):
         self.update_idletasks(); main_x = self.winfo_x(); main_y = self.winfo_y()
         main_width = self.winfo_width(); main_height = self.winfo_height()
@@ -539,7 +530,7 @@ class App(ttk.Window):
         
         def update_other_entry_state():
             if selected_reason.get() == "OUTROS":
-                if self.entry_other_reason is None:
+                if self.entry_other_reason is None: 
                     other_entry_container = ttk.Frame(container)
                     other_entry_container.pack(fill='both', expand=True, pady=5, anchor='w')
                     ttk.Label(other_entry_container, text="Descreva:").pack(side='top', anchor='w')
@@ -547,7 +538,7 @@ class App(ttk.Window):
                     self.entry_other_reason.pack(side='left', fill='both', expand=True)
                     self.entry_other_reason.focus_set()
             else:
-                if self.entry_other_reason is not None:
+                if self.entry_other_reason is not None: 
                     self.entry_other_reason.master.destroy()
                     self.entry_other_reason = None
         
@@ -600,7 +591,7 @@ class App(ttk.Window):
 
     def mostrar_janela_com_link(self, link):
         janela_link = Toplevel(self); janela_link.title("Link Gerado com Sucesso!")
-        popup_width = 450; popup_height = 180
+        popup_width = 450; popup_height = 180 
         self._center_popup(janela_link, popup_width, popup_height)
         container = ttk.Frame(janela_link, padding=20); container.pack(fill='both', expand=True)
         ttk.Label(container, text="Envie este link para o cliente:", font=("-weight bold")).pack(pady=(0, 10))
@@ -608,7 +599,7 @@ class App(ttk.Window):
         entry_link.pack(padx=10, pady=5); entry_link.config(state="readonly")
         def copiar_link_e_mensagem():
             
-            nome_cliente = self.entry_nome_cliente.get().split(' ')[0]
+            nome_cliente = self.entry_nome_cliente.get().split(' ')[0] 
             
             mensagem_completa = (f"Para prosseguir com o cancelamento da sua matrícula, "
                                  "Preciso que preencha as informações e assine "
@@ -645,7 +636,7 @@ class App(ttk.Window):
         
         def finalizar_geracao():
             cpf_limpo = limpar_cpf(entry_cpf_popup.get())
-            if not validar_cpf_algoritmo(cpf_limpo):
+            if not validar_cpf_algoritmo(cpf_limpo): 
                 messagebox.showerror("CPF Inválido", "O CPF digitado não é válido.", parent=popup); return
             dados_para_enviar = {"nome": nome_cliente.upper(), "cpf": cpf_limpo, "matricula": matricula, "valor_multa": f"{calculo_resultado['total_a_pagar']:.2f}", "data_inicio_contrato": calculo_resultado['data_inicio_contrato'].strftime('%d/%m/%Y'),"consultor": consultor_selecionado.upper()}
             popup.destroy()
@@ -669,12 +660,12 @@ class App(ttk.Window):
         ttk.Label(self.main_frame, text="Simulador de Cancelamento", font=self.FONT_TITLE).pack(pady=(0, 10), anchor='w')
         
         frame_form = ttk.Frame(self.main_frame)
-        frame_form.pack(padx=0, pady=5, fill="x", anchor='w')
+        frame_form.pack(padx=0, pady=5, fill="x", anchor='w') 
 
         ttk.Label(frame_form, text="Data de Início (dd/mm/aaaa):", width=25, anchor='w').grid(row=0, column=0, sticky="w", pady=5)
-        self.entry_data_inicio = ttk.Entry(frame_form, width=30)
+        self.entry_data_inicio = ttk.Entry(frame_form, width=30) 
         self.entry_data_inicio.grid(row=0, column=1, sticky="w", pady=5)
-        self.entry_data_inicio.bind("<KeyRelease>", lambda e: formatar_data(e, self.entry_data_inicio))
+        self.entry_data_inicio.bind("<KeyRelease>", lambda e: formatar_data(e, self.entry_data_inicio)) 
 
         ttk.Label(frame_form, text="Tipo de Plano:", width=25, anchor='w').grid(row=1, column=0, sticky="w", pady=5)
         self.combo_plano = ttk.Combobox(frame_form, values=list(PLANOS.keys()), width=27, state="readonly")
@@ -691,7 +682,7 @@ class App(ttk.Window):
         ttk.Button(frame_botoes, text="Nova Simulação", command=self.clear_fields, style='danger.TButton', width=20).pack(side="left", expand=False, padx=5, ipady=5)
 
         self.frame_resultado = ttk.Frame(self.main_frame, padding=(20, 15), relief="solid", borderwidth=1)
-        self.frame_resultado.pack(pady=5, padx=10, fill="both", expand=True, anchor='w')
+        self.frame_resultado.pack(pady=5, padx=10, fill="both", expand=True, anchor='w') 
         
         self.placeholder_label = ttk.Label(self.frame_resultado, text="O resultado aparecerá aqui...", font=self.FONT_MAIN, style="secondary.TLabel")
         self.placeholder_label.pack(expand=True)
@@ -701,7 +692,7 @@ class App(ttk.Window):
         vcmd_matricula = (self.register(validar_matricula), '%P')
         ttk.Label(self.frame_whatsapp, text="Matrícula:").grid(row=0, column=1, sticky="w", pady=4)
         
-        self.entry_matricula = ttk.Entry(self.frame_whatsapp, width=35, validate="key",
+        self.entry_matricula = ttk.Entry(self.frame_whatsapp, width=35, validate="key", 
                                          validatecommand=vcmd_matricula)
         self.entry_matricula.grid(row=0, column=2, sticky="w", pady=4)
         
@@ -742,10 +733,10 @@ class App(ttk.Window):
             for widget in self.frame_resultado.winfo_children():
                 if widget != self.frame_whatsapp: widget.destroy()
             
-            if 'erro_data' in calculo_resultado:
+            if 'erro_data' in calculo_resultado: 
                 messagebox.showerror("Data Inválida", calculo_resultado['erro_data'])
                 ttk.Label(self.frame_resultado, text="O resultado aparecerá aqui...", font=self.FONT_MAIN, style="secondary.TLabel").pack(expand=True); self.frame_whatsapp.pack_forget(); return
-            elif 'erro_geral' in calculo_resultado:
+            elif 'erro_geral' in calculo_resultado: 
                 messagebox.showerror("Erro", calculo_resultado['erro_geral'])
                 ttk.Label(self.frame_resultado, text="O resultado aparecerá aqui...").pack(expand=True); self.frame_whatsapp.pack_forget(); return
             
@@ -791,11 +782,12 @@ class App(ttk.Window):
         """Cria a tela da Calculadora de Comissão (Nativa)."""
         ttk.Label(self.main_frame, text="Calculadora de Comissão", font=self.FONT_TITLE).pack(pady=(0, 10), anchor='w')
         
+        # Frame de Cima: Upload
         frame_upload = ttk.Frame(self.main_frame)
         frame_upload.pack(side='top', fill='x', pady=(0, 10))
         
-        btn_upload = ttk.Button(frame_upload, text="Fazer Upload do PDF de Fechamento",
-                                command=self.processar_pdf_comissao,
+        btn_upload = ttk.Button(frame_upload, text="Fazer Upload do PDF de Fechamento", 
+                                command=self.processar_pdf_comissao, 
                                 style='primary.TButton',
                                 width=40)
         btn_upload.pack(side='left', ipady=5, pady=5)
@@ -803,11 +795,12 @@ class App(ttk.Window):
         self.lbl_pdf_selecionado = ttk.Label(frame_upload, text="Nenhum arquivo selecionado.", style='secondary.TLabel')
         self.lbl_pdf_selecionado.pack(side='left', padx=10)
         
+        # Frame de Baixo: Resultados
         self.frame_resultado_comissao = ScrolledFrame(self.main_frame, autohide=True)
         self.frame_resultado_comissao.pack(side='top', fill='both', expand=True, pady=(10, 0))
         
-        ttk.Label(self.frame_resultado_comissao.container,
-                  text="Selecione um PDF para calcular a comissão.",
+        ttk.Label(self.frame_resultado_comissao.container, 
+                  text="Selecione um PDF para calcular a comissão.", 
                   style='secondary.TLabel').pack(expand=True)
 
     def processar_pdf_comissao(self):
@@ -821,40 +814,51 @@ class App(ttk.Window):
 
         self.lbl_pdf_selecionado.config(text=os.path.basename(filepath))
         
+        # Limpa resultados antigos
         for widget in self.frame_resultado_comissao.container.winfo_children():
             widget.destroy()
         
+        # Mostra o cursor de "carregando"
         self.config(cursor="watch")
         self.update_idletasks()
         
         try:
+            # Chama a lógica do calculadora_core.py
             resultados = processar_pdf(filepath)
+            
+            # Devolve o cursor ao normal
             self.config(cursor="")
             self.update_idletasks()
+            
+            # Exibe os resultados
             self.exibir_resultados_comissao(resultados)
             
         except Exception as e:
+            # Devolve o cursor ao normal
             self.config(cursor="")
             self.update_idletasks()
-            messagebox.showerror("Erro ao Processar PDF",
+            # Mostra o erro
+            messagebox.showerror("Erro ao Processar PDF", 
                                  f"Ocorreu um erro ao ler o arquivo:\n\n{e}\n\nTraceback:\n{traceback.format_exc()}")
+            # Limpa o frame de resultados
             for widget in self.frame_resultado_comissao.container.winfo_children():
                 widget.destroy()
-            ttk.Label(self.frame_resultado_comissao.container,
-                      text=f"Falha ao ler o PDF.\n{e}",
+            ttk.Label(self.frame_resultado_comissao.container, 
+                      text=f"Falha ao ler o PDF.\n{e}", 
                       style='danger.TLabel').pack(expand=True)
 
     def _create_metric_widget(self, parent, label_text, value_text, bootstyle):
         """Função helper para criar um card de métrica."""
         frame = ttk.Frame(parent, bootstyle=bootstyle, padding=10, borderwidth=1, relief="raised")
         
-        lbl_title = ttk.Label(frame, text=label_text,
-                              font=(self.FONT_MAIN[0], 9, 'bold'),
+        # Usar 'inverse' para o texto ficar com a cor oposta (ex: branco no azul)
+        lbl_title = ttk.Label(frame, text=label_text, 
+                              font=(self.FONT_MAIN[0], 9, 'bold'), 
                               bootstyle=f'inverse-{bootstyle}')
         lbl_title.pack(side='top', anchor='nw')
         
-        lbl_value = ttk.Label(frame, text=value_text,
-                              font=(self.FONT_MAIN[0], 16, 'bold'),
+        lbl_value = ttk.Label(frame, text=value_text, 
+                              font=(self.FONT_MAIN[0], 16, 'bold'), 
                               bootstyle=f'inverse-{bootstyle}')
         lbl_value.pack(side='bottom', anchor='se', pady=(5,0))
         return frame
@@ -864,42 +868,47 @@ class App(ttk.Window):
         
         container = self.frame_resultado_comissao.container
         
+        # --- Seção 0: Info Cabeçalho ---
         info_cabecalho = resultados.get("info_cabecalho", {})
         operador = info_cabecalho.get("operador", "Não identificado")
         periodo = info_cabecalho.get("periodo", "Não identificado")
         
         frame_info = ttk.Frame(container, bootstyle='info', padding=10)
         frame_info.pack(fill='x', pady=5)
-        ttk.Label(frame_info, text=f"Fechamento: {operador}    |    Período: {periodo}",
+        ttk.Label(frame_info, text=f"Fechamento: {operador}   |   Período: {periodo}", 
                   font=self.FONT_BOLD, bootstyle='inverse-info').pack()
 
+        # --- Seção 1: Resumo do Cálculo ---
         frame_resumo = ttk.LabelFrame(container, text=" Resumo do Cálculo de Comissão ", padding=15)
         frame_resumo.pack(fill='x', pady=10)
         
+        # Criar 4 colunas para os Metrics
         frame_metrics = ttk.Frame(frame_resumo)
         frame_metrics.pack(fill='x')
         frame_metrics.grid_columnconfigure((0,1,2,3), weight=1)
         
-        m1 = self._create_metric_widget(frame_metrics, "Valor Total",
-                                        formatar_reais(resultados.get('valor_total_bruto', 0)),
-                                        'secondary')
+        # Substituído o 'Metric' inexistente pela nossa função helper
+        m1 = self._create_metric_widget(frame_metrics, "Valor Total", 
+                                       formatar_reais(resultados.get('valor_total_bruto', 0)), 
+                                       'secondary')
         m1.grid(row=0, column=0, padx=5, sticky='ew')
 
-        m2 = self._create_metric_widget(frame_metrics, "Descontos",
-                                        formatar_reais(resultados.get('total_deducoes', 0)),
-                                        'warning')
+        m2 = self._create_metric_widget(frame_metrics, "Descontos", 
+                                       formatar_reais(resultados.get('total_deducoes', 0)), 
+                                       'warning')
         m2.grid(row=0, column=1, padx=5, sticky='ew')
 
-        m3 = self._create_metric_widget(frame_metrics, "Valor Comissionável",
-                                        formatar_reais(resultados.get('base_comissionavel', 0)),
-                                        'primary')
+        m3 = self._create_metric_widget(frame_metrics, "Valor Comissionável", 
+                                       formatar_reais(resultados.get('base_comissionavel', 0)), 
+                                       'primary')
         m3.grid(row=0, column=2, padx=5, sticky='ew')
 
-        m4 = self._create_metric_widget(frame_metrics, "SUA COMISSÃO (3%)",
-                                        formatar_reais(resultados.get('comissao_final', 0)),
-                                        'success')
+        m4 = self._create_metric_widget(frame_metrics, "SUA COMISSÃO (3%)", 
+                                       formatar_reais(resultados.get('comissao_final', 0)), 
+                                       'success')
         m4.grid(row=0, column=3, padx=5, sticky='ew')
 
+        # --- Seção 2: Resumo de Vendas ---
         frame_vendas = ttk.LabelFrame(container, text=" Resumo de Vendas e Atendimentos ", padding=15)
         frame_vendas.pack(fill='x', expand=True, pady=10)
         
@@ -924,6 +933,7 @@ class App(ttk.Window):
                 tree_vendas.insert('', 'end', values=(nome_metodo, dados.get('qtd'), formatar_reais(dados.get('valor'))))
         tree_vendas.pack(fill='x', expand=True)
 
+        # --- Seção 3: Detalhes das Deduções ---
         frame_deducoes = ttk.LabelFrame(container, text=" Detalhamento das Deduções Encontradas ", padding=15)
         frame_deducoes.pack(fill='x', expand=True, pady=10)
         
@@ -949,39 +959,51 @@ class App(ttk.Window):
     def get_folgas_por_data(self, data_obj):
         """Função HElPER. Retorna uma lista de nomes em folga para uma data específica."""
         folgas_lista = []
+        # Itera no dicionário de folgas
         for consultor_nome, lista_de_datas in self.dados_folgas.items():
+            # Tenta encontrar a data na lista daquele consultor
             for data_str in lista_de_datas:
                 try:
+                    # Converte a string da data (ex: "01/11/2025") em um objeto date
                     data_folga = datetime.strptime(data_str.strip(), "%d/%m/%Y").date()
                     if data_folga == data_obj:
+                        # CORREÇÃO 1: Usar .upper() para MAIÚSCULAS
                         folgas_lista.append(consultor_nome.upper())
-                        break 
+                        break # Para de procurar nas datas desta pessoa
                 except ValueError:
+                    # Ignora datas mal formatadas no JSON
                     print(f"Aviso: Data mal formatada '{data_str}' para {consultor_nome}")
                     pass
         return folgas_lista
 
     def create_folgas_view(self):
         """Cria a tela de Folgas (lendo do folgas.json)."""
-        self.main_frame.grid_rowconfigure(1, weight=1) 
-        self.main_frame.grid_columnconfigure(0, weight=1) 
+        # *** CORREÇÃO DE LAYOUT: Configurar o grid do self.main_frame ***
+        self.main_frame.grid_rowconfigure(1, weight=1) # Faz a linha 1 (resultados) expandir
+        self.main_frame.grid_columnconfigure(0, weight=1) # Faz a coluna 0 expandir
 
         ttk.Label(self.main_frame, text="Controle de Folgas", font=self.FONT_TITLE).grid(row=0, column=0, pady=(0, 10), sticky='w')
         
+        # --- Frame de Cima: Consultas ---
         frame_consulta = ttk.Frame(self.main_frame, padding=10)
-        frame_consulta.grid(row=0, column=0, sticky='new')
+        # *** CORREÇÃO DE LAYOUT: MUDADO PARA GRID ***
+        frame_consulta.grid(row=0, column=0, sticky='new') 
 
+        # 1. Carregar os dados
         self.dados_folgas = carregar_folgas()
         if not self.dados_folgas:
             msg = "Nenhum dado de folga cadastrado.\n\nVá para a Área do Desenvolvedor para adicionar as folgas."
+            # Coloca a mensagem no frame de consulta mesmo
             ttk.Label(frame_consulta, text=msg, style='secondary.TLabel', font=self.FONT_MAIN).pack(expand=True)
-            self.frame_resultado_folgas = ttk.Frame(self.main_frame)
+            # Esconde o frame de resultado que não será criado
+            self.frame_resultado_folgas = ttk.Frame(self.main_frame) # Cria um frame vazio
             self.frame_resultado_folgas.grid(row=1, column=0, sticky='nsew')
             return
         
         hoje_obj = date.today()
         hoje_formatado = hoje_obj.strftime("%d/%m/%Y")
 
+        # 2. Folgas de Hoje
         frame_hoje = ttk.LabelFrame(frame_consulta, text=" Folgas de Hoje ", padding=(15, 10))
         frame_hoje.pack(fill='x', expand=True, side='top', pady=(0, 5))
         
@@ -991,6 +1013,7 @@ class App(ttk.Window):
         ttk.Label(frame_hoje, text=f"Data: {hoje_formatado}", font=self.FONT_BOLD).pack(anchor='w')
         ttk.Label(frame_hoje, text=f"Consultores: {folgas_hoje_str}", font=self.FONT_MAIN).pack(anchor='w', pady=(5,0))
 
+        # 3. NOVO: Folgas de Amanhã (Recurso 7)
         frame_amanha = ttk.LabelFrame(frame_consulta, text=" Folgas de Amanhã ", padding=(15, 10))
         frame_amanha.pack(fill='x', expand=True, side='top', pady=5)
         
@@ -1002,6 +1025,7 @@ class App(ttk.Window):
         ttk.Label(frame_amanha, text=f"Data: {amanha_formatado}", font=self.FONT_BOLD).pack(anchor='w')
         ttk.Label(frame_amanha, text=f"Consultores: {folgas_amanha_str}", font=self.FONT_MAIN).pack(anchor='w', pady=(5,0))
 
+        # 4. Consultar por Consultor
         frame_buscar = ttk.LabelFrame(frame_consulta, text=" Consultar por Consultor ", padding=(15, 10))
         frame_buscar.pack(fill='x', expand=True, pady=5, side='top')
 
@@ -1015,12 +1039,14 @@ class App(ttk.Window):
         btn_consultar = ttk.Button(frame_buscar, text="Consultar", command=self.mostrar_folgas_consultor, style='primary.TButton')
         btn_consultar.pack(side='left', padx=10)
         
+        # NOVO: Botão Limpar (Recurso 4)
         btn_limpar = ttk.Button(frame_buscar, text="Limpar", command=self.limpar_consulta_folgas, style='secondary.Outline.TButton')
         btn_limpar.pack(side='left', padx=10)
         
         btn_ver_tabela = ttk.Button(frame_buscar, text="Ver Tabela Completa", command=self.mostrar_tabela_completa_folgas, style='info.Outline.TButton')
         btn_ver_tabela.pack(side='right', padx=10)
         
+        # 5. NOVO: Consultar por Data (Recurso 5)
         frame_buscar_data = ttk.LabelFrame(frame_consulta, text=" Consultar por Data ", padding=(15, 10))
         frame_buscar_data.pack(fill='x', expand=True, pady=5, side='top')
         
@@ -1029,12 +1055,15 @@ class App(ttk.Window):
         self.entry_data_folga = ttk.Entry(frame_buscar_data, width=20)
         self.entry_data_folga.pack(side='left', padx=10)
         self.entry_data_folga.bind("<KeyRelease>", lambda e: formatar_data(e, self.entry_data_folga))
+        # NOVO: Data Padrão (Recurso 6)
         self.entry_data_folga.insert(0, hoje_formatado)
         
         btn_consultar_data = ttk.Button(frame_buscar_data, text="Consultar Data", command=self.mostrar_folgas_por_data, style='primary.TButton')
         btn_consultar_data.pack(side='left', padx=10)
 
+        # --- Parte de Baixo: Resultado ---
         self.frame_resultado_folgas = ScrolledFrame(self.main_frame, padding=10, autohide=True)
+        # *** CORREÇÃO DE LAYOUT: MUDADO PARA GRID ***
         self.frame_resultado_folgas.grid(row=1, column=0, sticky='nsew', pady=(10, 0))
         
         ttk.Label(self.frame_resultado_folgas.container, text="Selecione um consultor ou data para consultar.").pack()
@@ -1045,6 +1074,7 @@ class App(ttk.Window):
         self.entry_data_folga.delete(0, END)
         self.entry_data_folga.insert(0, date.today().strftime("%d/%m/%Y"))
         
+        # Limpa o frame de resultado
         for widget in self.frame_resultado_folgas.container.winfo_children():
             widget.destroy()
         ttk.Label(self.frame_resultado_folgas.container, text="Selecione um consultor ou data para consultar.").pack()
@@ -1062,6 +1092,7 @@ class App(ttk.Window):
         datas_folga = self.dados_folgas.get(nome_consultor, [])
         
         container = self.frame_resultado_folgas.container
+        # CORREÇÃO 1: Usar .upper()
         ttk.Label(container, text=f"Folgas Cadastradas - {nome_consultor.upper()}:", font=self.FONT_BOLD).pack(anchor='w', pady=(0, 10))
 
         if not datas_folga:
@@ -1071,7 +1102,7 @@ class App(ttk.Window):
         try:
             datas_folga_sorted = sorted(datas_folga, key=lambda d: datetime.strptime(d.strip(), "%d/%m/%Y"))
         except ValueError:
-            datas_folga_sorted = datas_folga
+            datas_folga_sorted = datas_folga 
 
         for dia in datas_folga_sorted:
             ttk.Label(container, text=f"• {dia}").pack(anchor='w')
@@ -1102,6 +1133,7 @@ class App(ttk.Window):
             return
 
         for nome in folgas_lista:
+            # .upper() já foi aplicado em get_folgas_por_data
             ttk.Label(container, text=f"• {nome}").pack(anchor='w')
 
     def mostrar_tabela_completa_folgas(self):
@@ -1120,6 +1152,7 @@ class App(ttk.Window):
         tree_folgas.column('consultor', width=200, anchor='w', stretch=False)
         tree_folgas.column('datas', width=500, anchor='w')
         
+        # Preencher Dados
         for nome, lista_de_datas in sorted(self.dados_folgas.items()):
             try:
                 datas_folga_sorted = sorted(lista_de_datas, key=lambda d: datetime.strptime(d.strip(), "%d/%m/%Y"))
@@ -1127,6 +1160,7 @@ class App(ttk.Window):
                 datas_folga_sorted = lista_de_datas
                 
             datas_str = ", ".join(datas_folga_sorted)
+            # CORREÇÃO 1: Usar .upper()
             tree_folgas.insert('', 'end', values=(nome.upper(), datas_str))
             
         tree_folgas.pack(fill='both', expand=True)
@@ -1134,9 +1168,9 @@ class App(ttk.Window):
     # --- ÁREA DO DESENVOLVEDOR ---
     def show_developer_login(self):
         """Mostra um popup para o login na área do desenvolvedor.
-           Retorna True se o login for bem-sucedido, False caso contrário."""
+            Retorna True se o login for bem-sucedido, False caso contrário."""
         
-        self.pin_success = False
+        self.pin_success = False 
         
         popup = Toplevel(self)
         popup.title("Área do Desenvolvedor - Login")
@@ -1150,24 +1184,24 @@ class App(ttk.Window):
         ttk.Label(container, text="Digite o PIN para acessar a Área do Desenvolvedor:", font=self.FONT_MAIN).pack(pady=(0, 10))
         
         pin_entry_var = StringVar()
-        pin_entry = ttk.Entry(container, width=20, show="*", textvariable=pin_entry_var)
+        pin_entry = ttk.Entry(container, width=20, show="*", textvariable=pin_entry_var) 
         pin_entry.pack(pady=5)
         pin_entry.focus_set()
 
         def verify_pin():
-            if pin_entry_var.get() == "8274":
-                self.pin_success = True
+            if pin_entry_var.get() == "8274": 
+                self.pin_success = True 
                 popup.destroy()
             else:
                 messagebox.showerror("PIN Inválido", "PIN incorreto. Acesso negado.", parent=popup)
-                pin_entry_var.set("")
+                pin_entry_var.set("") 
                 pin_entry.focus_set()
 
         ttk.Button(container, text="Acessar", command=verify_pin, style='success.TButton').pack(pady=10)
-        popup.bind("<Return>", lambda event: verify_pin())
+        popup.bind("<Return>", lambda event: verify_pin()) 
         self.wait_window(popup)
         
-        return self.pin_success
+        return self.pin_success 
 
     def create_developer_area_view(self):
         """Cria a tela da Área do Desenvolvedor com funcionalidade."""
@@ -1178,7 +1212,7 @@ class App(ttk.Window):
 
         # --- Lado Esquerdo: Lista de Consultores ---
         frame_lista = ttk.Frame(pw, padding=10)
-        pw.add(frame_lista, weight=1)
+        pw.add(frame_lista, weight=1) 
         
         ttk.Label(frame_lista, text="Consultores", font=self.FONT_BOLD).pack(anchor='w')
         
@@ -1199,7 +1233,7 @@ class App(ttk.Window):
 
         # --- Lado Direito: Formulário de Edição ---
         frame_form = ttk.Frame(pw, padding=10)
-        pw.add(frame_form, weight=2)
+        pw.add(frame_form, weight=2) 
         
         ttk.Label(frame_form, text="Editar Consultor", font=self.FONT_BOLD).pack(anchor='w')
         
@@ -1220,9 +1254,9 @@ class App(ttk.Window):
 
         ttk.Button(frame_form, text="Salvar Alterações", style="primary.TButton", command=self.dev_salvar_alteracoes).pack(anchor='w', pady=20)
         
-        self.dev_folgas_button = ttk.Button(frame_form, text="Ajustar Folgas",
-                                            command=self.show_folgas_popup,
-                                            style="info.TButton",
+        self.dev_folgas_button = ttk.Button(frame_form, text="Ajustar Folgas", 
+                                            command=self.show_folgas_popup, 
+                                            style="info.TButton", 
                                             state='disabled')
         self.dev_folgas_button.pack(anchor='w', pady=5, ipady=4)
         
@@ -1239,6 +1273,7 @@ class App(ttk.Window):
         self.dev_nome_var.set("")
         self.dev_foto_path_var.set("")
         self.load_profile_picture("", size=PROFILE_PIC_SIZE, is_dev_preview=True)
+        # Desabilita o botão de folgas
         if hasattr(self, 'dev_folgas_button'):
             self.dev_folgas_button.config(state='disabled')
 
@@ -1248,7 +1283,7 @@ class App(ttk.Window):
         """Chamado quando um item é selecionado na Treeview."""
         selected_iid = self.dev_tree.focus()
         if not selected_iid:
-            self.dev_folgas_button.config(state='disabled')
+            self.dev_folgas_button.config(state='disabled') # Desabilita se nada for selecionado
             return
         
         values = self.dev_tree.item(selected_iid, 'values')
@@ -1257,16 +1292,16 @@ class App(ttk.Window):
         self.dev_nome_var.set(nome)
         self.dev_foto_path_var.set(foto_path)
         self.load_profile_picture(foto_path, size=PROFILE_PIC_SIZE, is_dev_preview=True)
-        self.dev_folgas_button.config(state='normal')
+        self.dev_folgas_button.config(state='normal') # Habilita o botão de folgas
         
     def dev_fazer_upload(self):
         """Abre a janela de diálogo para o upload de uma nova foto."""
         filepath = filedialog.askopenfilename(
-            title="Selecionar foto",
+            title="Selecionar foto", 
             filetypes=[("Imagens", "*.png *.jpg *.jpeg *.bmp"), ("Todos os arquivos", "*.*")]
         )
         if not filepath:
-            return
+            return 
             
         filename = os.path.basename(filepath)
         dest_path = os.path.join(DATA_FOLDER_PATH, filename)
@@ -1296,19 +1331,23 @@ class App(ttk.Window):
             messagebox.showwarning("Campo Vazio", "O nome do consultor não pode estar vazio.")
             return
 
+        # Atualiza a lista de dados
         for consultor in self.lista_completa_consultores:
             if consultor['nome'] == original_nome:
                 consultor['nome'] = novo_nome
                 consultor['foto_path'] = nova_foto
                 break
         
+        # Salva no JSON e atualiza a UI
         if salvar_consultores(self.lista_completa_consultores):
+            # Recarrega a lista de nomes principal (para o login)
             self.nomes_consultores = [c['nome'] for c in self.lista_completa_consultores]
             self.combo_consultor_login.config(values=self.nomes_consultores)
             
             self.populate_consultor_tree()
             self.show_toast("Sucesso!", "Consultor atualizado.")
             
+            # ATUALIZA O JSON DE FOLGAS (se o nome mudou)
             self.dados_folgas = carregar_folgas()
             if original_nome in self.dados_folgas and original_nome != novo_nome:
                 if messagebox.askyesno("Atualizar Folgas", f"Você renomeou '{original_nome}' para '{novo_nome}'.\n\nDeseja transferir os dados de folgas para o novo nome?"):
@@ -1329,6 +1368,7 @@ class App(ttk.Window):
         self.lista_completa_consultores.append({"nome": novo_nome, "foto_path": nova_foto})
         
         if salvar_consultores(self.lista_completa_consultores):
+            # Recarrega a lista de nomes principal (para o login)
             self.nomes_consultores = [c['nome'] for c in self.lista_completa_consultores]
             self.combo_consultor_login.config(values=self.nomes_consultores)
             
@@ -1356,12 +1396,14 @@ class App(ttk.Window):
         self.lista_completa_consultores = [c for c in self.lista_completa_consultores if c['nome'] != original_nome]
         
         if salvar_consultores(self.lista_completa_consultores):
+            # Recarrega a lista de nomes principal (para o login)
             self.nomes_consultores = [c['nome'] for c in self.lista_completa_consultores]
             self.combo_consultor_login.config(values=self.nomes_consultores)
             
             self.populate_consultor_tree()
             self.show_toast("Excluído", f"{original_nome} foi removido.")
             
+            # Remove as folgas do JSON
             self.dados_folgas = carregar_folgas()
             if original_nome in self.dados_folgas:
                 if messagebox.askyesno("Remover Folgas", f"Deseja também remover as folgas cadastradas para '{original_nome}'?"):
@@ -1375,22 +1417,26 @@ class App(ttk.Window):
         
         selected_iid = self.dev_tree.focus()
         if not selected_iid:
-            return 
+            return # Segurança, embora o botão deva estar desabilitado
         
         consultor_nome = self.dev_tree.item(selected_iid, 'values')[0]
 
+        # Carrega os dados mais recentes
         self.dados_folgas = carregar_folgas()
+        # Pega a lista de datas para este consultor (ou uma lista vazia)
         lista_de_datas = self.dados_folgas.get(consultor_nome, [])
         
+        # --- Cria o Popup ---
         popup = Toplevel(self)
         popup.title(f"Ajustar Folgas: {consultor_nome}")
-        self._center_popup(popup, 500, 400)
+        self._center_popup(popup, 500, 400) # (popup, largura, altura)
         
         container = ttk.Frame(popup, padding=15)
         container.pack(fill='both', expand=True)
         container.grid_rowconfigure(1, weight=1)
         container.grid_columnconfigure(0, weight=1)
 
+        # --- Frame de Adicionar Data ---
         frame_add = ttk.Frame(container)
         frame_add.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 10))
         
@@ -1406,6 +1452,7 @@ class App(ttk.Window):
                 messagebox.showwarning("Data Inválida", "Digite a data completa (dd/mm/aaaa).", parent=popup)
                 return
             try:
+                # Valida a data
                 datetime.strptime(data_str, "%d/%m/%Y")
             except ValueError:
                 messagebox.showwarning("Data Inválida", "A data digitada não é válida.", parent=popup)
@@ -1421,220 +1468,55 @@ class App(ttk.Window):
         btn_add = ttk.Button(frame_add, text="Adicionar", style="success.Outline.TButton", command=on_add_data)
         btn_add.pack(side='left')
 
+        # --- Lista de Datas ---
         listbox_folgas = Listbox(container, height=10, font=self.FONT_MAIN, width=30)
         listbox_folgas.grid(row=1, column=0, sticky='nsew', pady=5)
         
+        # Scrollbar para a Listbox
         scrollbar = ttk.Scrollbar(container, orient='vertical', command=listbox_folgas.yview)
         scrollbar.grid(row=1, column=1, sticky='ns', pady=5)
         listbox_folgas.config(yscrollcommand=scrollbar.set)
 
+        # Preenche a lista com as datas salvas
         try:
             datas_ordenadas = sorted(lista_de_datas, key=lambda d: datetime.strptime(d.strip(), "%d/%m/%Y"))
         except ValueError:
-            datas_ordenadas = lista_de_datas
+            datas_ordenadas = lista_de_datas # Se houver erro de formatação, não ordena
 
         for data in datas_ordenadas:
             listbox_folgas.insert(END, data)
             
+        # --- Botões de Ação ---
         frame_botoes = ttk.Frame(container)
         frame_botoes.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(10, 0))
 
         def on_remove_data():
             try:
-                listbox_folgas.delete(ANCHOR)
+                listbox_folgas.delete(ANCHOR) # Deleta o item selecionado
             except Exception as e:
                 print(f"Erro ao remover: {e}")
 
-        btn_remove = ttk.Button(frame_botoes, text="Remover Data Selecionada",
+        btn_remove = ttk.Button(frame_botoes, text="Remover Data Selecionada", 
                                 style="danger.Outline.TButton", command=on_remove_data)
         btn_remove.pack(side='left')
 
         def on_save_folgas():
+            # Pega todas as datas da listbox
             nova_lista_de_datas = list(listbox_folgas.get(0, END))
+            # Atualiza o dicionário principal
             self.dados_folgas[consultor_nome] = nova_lista_de_datas
+            # Salva no arquivo JSON
             if salvar_folgas(self.dados_folgas):
                 self.show_toast("Sucesso!", f"Folgas de {consultor_nome} salvas.")
                 popup.destroy()
             else:
                 messagebox.showerror("Erro", "Não foi possível salvar as folgas.", parent=popup)
 
-        btn_save = ttk.Button(frame_botoes, text="Salvar e Fechar",
+        btn_save = ttk.Button(frame_botoes, text="Salvar e Fechar", 
                               style="success.TButton", command=on_save_folgas)
         btn_save.pack(side='right')
 
-    # --- INÍCIO: MÉTODOS CREF (MODIFICADOS) ---
-    
-    def create_cref_view(self):
-        """Cria a tela de Consulta de CREF (v8)."""
-        ttk.Label(self.main_frame, text="Consulta de CREF (CREF4/SP)", font=self.FONT_TITLE).pack(pady=(0, 10), anchor='w')
-
-        # Frame para o input
-        frame_form_cref = ttk.Frame(self.main_frame)
-        frame_form_cref.pack(fill='x', pady=5)
-
-        ttk.Label(frame_form_cref, text="Nº do Registro (ex: 043103-G/SP):", font=self.FONT_MAIN).pack(side='left', padx=(0, 10))
-        
-        self.entry_cref = ttk.Entry(frame_form_cref, width=25, font=self.FONT_MAIN)
-        self.entry_cref.pack(side='left', padx=5)
-
-        self.btn_consultar_cref = ttk.Button(frame_form_cref, text="Consultar", 
-                                             command=self.do_cref_consultation, 
-                                             style='primary.TButton')
-        self.btn_consultar_cref.pack(side='left', padx=10, ipady=2)
-
-        # Frame para o resultado (com ScrolledText)
-        frame_resultado_cref = ttk.Frame(self.main_frame)
-        frame_resultado_cref.pack(fill='both', expand=True, pady=(10, 0))
-
-        self.text_cref_result = scrolledtext.ScrolledText(frame_resultado_cref, height=15, 
-                                                          width=80, font=self.FONT_MAIN,
-                                                          wrap='word')
-        self.text_cref_result.pack(fill='both', expand=True)
-        self.text_cref_result.insert(END, "Digite um número de CREF e clique em 'Consultar'.\n\n" \
-        "Apenas (CREF4/SP) são suportados no momento.\n\n"
-        "A consulta retornara apenas o nome do profissional.")
-        self.text_cref_result.config(state='disabled')
-
-    def do_cref_consultation(self):
-        """Inicia a consulta CREF em uma thread separada para não travar a GUI."""
-        cref_number = self.entry_cref.get()
-        if not cref_number:
-            messagebox.showwarning("Campo Vazio", "Por favor, digite um número de CREF.")
-            return
-
-        # --- ALTERADO ---
-        # Limpa o resultado anterior e mostra "Consultando..."
-        self.text_cref_result.config(state='normal')
-        self.text_cref_result.delete("1.0", END)
-        self.btn_consultar_cref.config(state="disabled")
-        
-        self.text_cref_result.insert(END, f"Consultando {cref_number}...\n\n"
-                                          "(Pode demorar alguns segundos).")
-        self.text_cref_result.config(state='disabled')
-        # --- FIM DA ALTERAÇÃO ---
-
-        # Inicia a thread
-        thread = threading.Thread(target=self._run_selenium_cref, args=(cref_number,), daemon=True)
-        thread.start()
-
-    def _update_cref_result(self, message):
-        """
-        --- ALTERADO ---
-        Função segura para ATUALIZAR a GUI com o resultado final.
-        Agora ela limpa a caixa antes de inserir o resultado.
-        """
-        
-        self.text_cref_result.config(state='normal')
-        self.text_cref_result.delete("1.0", END) # Limpa a caixa
-        self.text_cref_result.insert(END, message) # Insere a mensagem final
-        self.text_cref_result.see(END) # Auto-scroll
-        self.text_cref_result.config(state='disabled')
-        self.btn_consultar_cref.config(state="normal") # Reabilita o botão
-
-
-    def _run_selenium_cref(self, numero_cref):
-        """
-        --- ALTERADO ---
-        O código do Selenium (v8) que roda na thread.
-        Agora roda --headless e só envia o resultado FINAL.
-        """
-        driver = None
-        result_message = "" # Variável para guardar a mensagem final
-        
-        try:
-            url_inicial = "https://sistemacref4.com.br/crefonline/SifaOnLineServicosPublicoAction.do?metodo=servicoPublicoProfissionais"
-            
-            options = webdriver.ChromeOptions()
-            options.add_argument("--headless") # Roda o Chrome invisível
-            options.add_argument("--disable-gpu")
-            options.add_argument("--log-level=3")
-            options.add_experimental_option('excludeSwitches', ['enable-logging'])
-
-            # Instala ou atualiza o chromedriver automaticamente
-            service = ChromeService(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=options)
-            
-            driver.get(url_inicial)
-            wait = WebDriverWait(driver, 10) # Espera de 10 seg
-            
-            # --- ETAPA 1: Clicar no link "Profissionais Registrados" ---
-            link_profissionais = wait.until(
-                EC.element_to_be_clickable((By.LINK_TEXT, "Profissionais Registrados"))
-            )
-            link_profissionais.click()
-            
-            # --- ETAPA 2: A CONSULTA ---
-            registro_input = wait.until(
-                EC.visibility_of_element_located((By.NAME, "buscaRegistro"))
-            )
-            registro_input.send_keys(numero_cref)
-            
-            consultar_button = driver.find_element(By.CSS_SELECTOR, "input[value='CONSULTAR']")
-            consultar_button.click()
-
-            # --- ETAPA 3: AGUARDAR RESULTADOS ---
-            wait.until(
-                EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'NOME')]"))
-            )
-            
-            html_da_resposta = driver.page_source
-            
-            # --- ETAPA 4: BeautifulSoup ---
-            soup = BeautifulSoup(html_da_resposta, 'html.parser')
-            header_nome_generico = soup.find(lambda tag: tag.name in ('td', 'th') and 'NOME' in tag.get_text())
-            
-            if not header_nome_generico:
-                raise Exception("Parse falhou: Cabeçalho 'NOME' não encontrado")
-
-            header_row = header_nome_generico.find_parent('tr')
-            data_rows = header_row.find_next_siblings('tr')
-
-            if not data_rows:
-                result_message = f"CREF {numero_cref} não encontrado.\n\nCONSULTA REALIZADA NO SITE DO CREF."
-                return
-
-            encontrado = False
-            for row in data_rows:
-                cols = row.find_all('td')
-                if len(cols) >= 2:
-                    registro_encontrado = cols[0].text.strip()
-                    nome_encontrado = cols[1].text.strip()
-                    
-                    if registro_encontrado == numero_cref:
-                        result_message = (
-                            f"Nome: {nome_encontrado}\n"
-                            f"Registro: {registro_encontrado}\n\n"
-                            "CONSULTA REALIZADA NO SITE DO CREF."
-                        )
-                        encontrado = True
-                        break
-            
-            if not encontrado:
-                 result_message = f"CREF {numero_cref} não encontrado.\n\nCONSULTA REALIZADA NO SITE DO CREF."
-
-        except TimeoutException:
-            result_message = ("ERRO: O site demorou demais para responder (Timeout).\n"
-                             "Verifique sua conexão com a internet ou tente novamente mais tarde.")
-        except WebDriverException as e:
-            if "net::ERR_INTERNET_DISCONNECTED" in str(e):
-                result_message = "ERRO: Sem conexão com a internet."
-            else:
-                 result_message = (f"ERRO: O 'motorista' do Chrome (WebDriver) falhou.\n"
-                                  f"Verifique se o Chrome está instalado e atualizado.\n"
-                                  f"Detalhe: {str(e)}")
-        except Exception as e:
-            result_message = f"ERRO: Um erro inesperado ocorreu: {e}"
-        finally:
-            if driver:
-                driver.quit()
-            
-            # Envia a mensagem FINAL (seja sucesso ou erro) para a GUI
-            self.after(0, self._update_cref_result, result_message)
-
-    # --- FIM: MÉTODOS CREF ---
-
-
 # --- Bloco Principal ---
 if __name__ == "__main__":
-    app = App(themename="flatly")
+    app = App(themename="flatly") 
     app.mainloop()
