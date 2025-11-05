@@ -478,7 +478,7 @@ class App(ttk.Window):
         form_frame = ttk.Frame(login_container)
         form_frame.pack(pady=10)
 
-        ttk.Label(form_frame, text="Selecione ou digite seu nome:", font=self.FONT_MAIN).pack(anchor='w')
+        ttk.Label(form_frame, text="Selecione seu nome:", font=self.FONT_MAIN).pack(anchor='w')
         
         self.combo_consultor_login = ttk.Combobox(form_frame, values=self.nomes_consultores, width=35, font=self.FONT_MAIN, state="readonly")
         self.combo_consultor_login.pack(pady=(5, 15))
