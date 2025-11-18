@@ -3,21 +3,29 @@
 import os
 
 a = Analysis(
-    ['simulacaocanciron.py'],
-    pathex=[],  # Correto!
+    ['main.py'], # <-- CORRIGIDO
+    pathex=[], 
     binaries=[],
     datas=[ ('data', 'data') ],
     hiddenimports=[
         'ttkbootstrap',
         'piexif',
-        'PIL',  # Nome alternativo para Pillow
+        'PIL', 
         'dateutil.relativedelta',
+        # --- Dependências da Calculadora de Comissão ---
         'pdfplumber',
         'pdfminer',
         'pdfminer.six',
         'chardet',
         'Crypto',
-        'PyCryptodome' # Nome alternativo para Crypto
+        'PyCryptodome',
+        'firebase_admin',
+        # --- NOVAS ADIÇÕES (Câmera e Upload) ---
+        'cv2',
+        'numpy',
+        'imagekitio',
+        'multiprocessing',
+        'queue'
     ],
     hookspath=[],
     hooksconfig={},
@@ -38,13 +46,13 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,
+    console=False, # Modo Janela (sem console)
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # A linha do ícone foi removida
+    icon='renuncia.ico', # <-- ADICIONADO
 )
 coll = COLLECT(
     exe,
