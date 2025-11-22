@@ -3,7 +3,7 @@
 import os
 
 a = Analysis(
-    ['main.py'], # <-- CORRIGIDO
+    ['main.py'], 
     pathex=[], 
     binaries=[],
     datas=[ ('data', 'data') ],
@@ -20,12 +20,15 @@ a = Analysis(
         'Crypto',
         'PyCryptodome',
         'firebase_admin',
-        # --- NOVAS ADIÇÕES (Câmera e Upload) ---
+        # --- NOVAS ADIÇÕES (Câmera, Upload e PDF) ---
         'cv2',
         'numpy',
         'imagekitio',
         'multiprocessing',
-        'queue'
+        'queue',
+        'reportlab',  # <--- ADICIONADO: Para gerar o Holerite
+        'reportlab.lib',
+        'reportlab.pdfgen'
     ],
     hookspath=[],
     hooksconfig={},
@@ -46,13 +49,13 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False, # Modo Janela (sem console)
+    console=False, # Modo Janela (sem console preto)
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='renuncia.ico', # <-- ADICIONADO
+    icon='renuncia.ico', 
 )
 coll = COLLECT(
     exe,
