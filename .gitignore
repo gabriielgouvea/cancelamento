@@ -13,6 +13,9 @@ __pycache__/
 /build/
 *.spec
 
+# Inno Setup (não versionar instaladores gerados)
+/inno cancelamento/*.exe
+
 # Arquivos de sistema
 .DS_Store
 

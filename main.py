@@ -54,7 +54,7 @@ from app_utils import formatar_data
 import shutil
 
 # --- Variáveis Globais e Constantes ---
-APP_VERSION = "5.0.3"
+APP_VERSION = "5.0.4"
 VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/veritas/main/version.json"
 DATA_FOLDER_PATH = os.path.join(SCRIPT_PATH, "data") 
 PROFILE_PIC_SIZE = (96, 96)

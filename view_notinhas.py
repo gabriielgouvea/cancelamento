@@ -19,7 +19,7 @@ _TWO_PLACES = Decimal("0.01")
 
 
 def _parse_money_ptbr(raw: str) -> Decimal:
-    """Parse monetário pt-BR com modo "maquininha".
+    """Parse monetário pt-BR com modo "maquininha" (comportamento original).
 
     Regras:
     - Com vírgula: 10,2 -> 10,20; 10,20 -> 10,20; 1.234,56 -> 1234,56
@@ -34,7 +34,6 @@ def _parse_money_ptbr(raw: str) -> Decimal:
     # Normaliza espaços
     s = s.replace(" ", "")
 
-    # Modo maquininha: somente dígitos e sem separador decimal
     if s.isdigit():
         if len(s) >= 3:
             v = (Decimal(int(s)) / Decimal(100)).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
@@ -119,6 +118,10 @@ class NotinhasView:
         self.entry_valor = ttk.Entry(frame_top, width=20, font=(self.app.FONT_MAIN[0], 14))
         self.entry_valor.grid(row=1, column=1, sticky="w", padx=(10, 10), pady=(10, 0))
         self.entry_valor.bind("<Return>", self._on_enter_add)
+        self.entry_valor.bind("<KeyRelease>", self._on_valor_typing)
+
+        self.lbl_preview = ttk.Label(frame_top, text="Interpretado: —", style="secondary.TLabel")
+        self.lbl_preview.grid(row=2, column=1, columnspan=2, sticky="w", padx=(10, 10), pady=(6, 0))
 
         ttk.Button(
             frame_top,
@@ -180,7 +183,7 @@ class NotinhasView:
         ).pack(side="left")
         ttk.Label(
             frame_list_actions,
-            text="Dica: Enter adiciona. Aceita 35, 3590→35,90, 10,20, 1.234,56",
+            text="Dica: Enter adiciona. Preview mostra o valor. Ex: 3590→35,90 | para 100,00 digite 100,00",
             style="secondary.TLabel",
         ).pack(side="right")
 
@@ -207,6 +210,9 @@ class NotinhasView:
         # Foco inicial
         self.entry_valor.focus_set()
 
+        # Inicializa preview
+        self._update_preview_from_entry()
+
         # Reidrata lançamentos persistidos
         self._load_state_into_ui()
         self._update_totals()
@@ -223,6 +229,21 @@ class NotinhasView:
             ]
         except Exception:
             pass
+
+    def _update_preview_from_entry(self):
+        raw = self.entry_valor.get() or ""
+        if not raw.strip():
+            self.lbl_preview.config(text="Interpretado: R$ 0,00")
+            return
+        try:
+            valor = _parse_money_ptbr(raw)
+        except Exception:
+            self.lbl_preview.config(text="Interpretado: —")
+            return
+        self.lbl_preview.config(text=f"Interpretado: R$ {_format_money_ptbr(valor)}")
+
+    def _on_valor_typing(self, event=None):
+        self._update_preview_from_entry()
 
     def _load_state_into_ui(self):
         # Limpa UI
@@ -272,6 +293,7 @@ class NotinhasView:
         self.tree.insert("", "end", values=(lanc.tipo, f"R$ {_format_money_ptbr(lanc.valor)}"))
         self.entry_valor.delete(0, "end")
         self.entry_valor.focus_set()
+        self._update_preview_from_entry()
         self._persist_state()
         self._update_totals()
 
