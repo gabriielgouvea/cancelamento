@@ -12,6 +12,7 @@ from tkinter import messagebox
 import os
 import traceback # <-- Importado para mostrar o erro completo
 import io
+import json
 from PIL import Image
 
 # --- IMPORTAÇÃO CORRETA ---
@@ -22,10 +23,37 @@ from imagekitio import ImageKit
 db_ref = None # Para o Realtime Database
 imagekit = None # Para o ImageKit
 FIREBASE_CONECTADO = False
+OFFLINE_MODE = False
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
-KEY_FILE_PATH = os.path.join(SCRIPT_PATH, "data", "firebase-key.json")
+DEFAULT_KEY_FILE_PATH = os.path.join(SCRIPT_PATH, "data", "firebase-key.json")
 TEMP_UPLOAD_PATH = os.path.join(SCRIPT_PATH, "temp_upload.jpg") # Caminho do arquivo temporário
+
+DATA_FOLDER_PATH = os.path.join(SCRIPT_PATH, "data")
+
+
+def _local_json_read(filename, default_value):
+    path = os.path.join(DATA_FOLDER_PATH, filename)
+    if not os.path.exists(path):
+        return default_value
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"AVISO: Falha ao ler JSON local {path}: {e}")
+        return default_value
+
+
+def _local_json_write(filename, value):
+    try:
+        os.makedirs(DATA_FOLDER_PATH, exist_ok=True)
+        path = os.path.join(DATA_FOLDER_PATH, filename)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(value, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"AVISO: Falha ao salvar JSON local {filename}: {e}")
+        return False
 
 # --- URL DO SEU RTDB ---
 DATABASE_URL = "https://sistema-veritas-default-rtdb.firebaseio.com/" 
@@ -38,14 +66,22 @@ IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/2ewjhonqc"
 
 def init_firebase():
     """Conecta-se ao Realtime Database E ao ImageKit."""
-    global db_ref, imagekit, FIREBASE_CONECTADO
+    global db_ref, imagekit, FIREBASE_CONECTADO, OFFLINE_MODE
     
     if FIREBASE_CONECTADO:
         return True
 
+    # Permite rodar em modo offline sem Firebase via variável de ambiente.
+    offline_env = (os.getenv('VERITAS_OFFLINE') or '').strip().lower()
+    if offline_env in {"1", "true", "yes", "sim"}:
+        OFFLINE_MODE = True
+        return False
+
+    key_file_path = os.getenv('FIREBASE_KEY_PATH') or DEFAULT_KEY_FILE_PATH
+
     try:
         # 1. Conecta ao Firebase (RTDB)
-        cred = credentials.Certificate(KEY_FILE_PATH)
+        cred = credentials.Certificate(key_file_path)
         firebase_admin.initialize_app(cred, {
             'databaseURL': DATABASE_URL
         })
@@ -77,9 +113,10 @@ def init_firebase():
         # MUDADO DE MESSAGEBOX PARA PRINT
         print("="*50)
         print("ERRO CRÍTICO DE FIREBASE")
-        print(f"O arquivo-chave 'firebase-key.json' não foi encontrado em:\n{KEY_FILE_PATH}")
+        print(f"O arquivo-chave do Firebase não foi encontrado em:\n{key_file_path}")
         print("O aplicativo não pode se conectar à nuvem.")
         print("="*50)
+        OFFLINE_MODE = True
         # --- ***** FIM DA CORREÇÃO ***** ---
         return False
     except Exception as e:
@@ -91,11 +128,17 @@ def init_firebase():
         print("="*50)
         traceback.print_exc() # Imprime o traceback completo
         # --- ***** FIM DA CORREÇÃO ***** ---
+        OFFLINE_MODE = True
         return False
+
+
+def is_offline_mode():
+    return bool(OFFLINE_MODE)
 
 # --- Funções de Consultores (RTDB) ---
 def carregar_consultores():
-    if not db_ref: return []
+    if not db_ref:
+        return _local_json_read('consultores.json', [])
     try:
         ref = db_ref.child('consultores')
         data = ref.get()
@@ -105,7 +148,8 @@ def carregar_consultores():
         return []
 
 def salvar_consultores(lista_consultores):
-    if not db_ref: return False
+    if not db_ref:
+        return _local_json_write('consultores.json', lista_consultores)
     try:
         ref = db_ref.child('consultores')
         ref.set(lista_consultores)
@@ -116,7 +160,8 @@ def salvar_consultores(lista_consultores):
 
 # --- Funções de Folgas (RTDB) ---
 def carregar_folgas():
-    if not db_ref: return {}
+    if not db_ref:
+        return _local_json_read('folgas.json', {})
     try:
         ref = db_ref.child('folgas')
         data = ref.get()
@@ -126,7 +171,8 @@ def carregar_folgas():
         return {}
 
 def salvar_folgas(dados_folgas):
-    if not db_ref: return False
+    if not db_ref:
+        return _local_json_write('folgas.json', dados_folgas)
     try:
         ref = db_ref.child('folgas')
         ref.set(dados_folgas)
@@ -268,7 +314,8 @@ def carregar_caixa_comissao():
     """
     (RTDB) Carrega TODOS os registros do caixa de comissão.
     """
-    if not db_ref: return {}
+    if not db_ref:
+        return _local_json_read('caixa_comissao.json', {})
     try:
         ref = db_ref.child('caixa_comissao') 
         data = ref.get()
@@ -281,7 +328,8 @@ def salvar_caixa_comissao(dados_caixa):
     """
     (RTDB) Salva os dados completos do caixa de comissão.
     """
-    if not db_ref: return False
+    if not db_ref:
+        return _local_json_write('caixa_comissao.json', dados_caixa)
     try:
         ref = db_ref.child('caixa_comissao')
         ref.set(dados_caixa)
@@ -294,7 +342,8 @@ def carregar_pins_consultores():
     """
     (RTDB) Carrega a lista de PINs dos consultores.
     """
-    if not db_ref: return {}
+    if not db_ref:
+        return _local_json_read('pins_consultores.json', {})
     try:
         ref = db_ref.child('pins_consultores') 
         data = ref.get()
@@ -307,7 +356,8 @@ def salvar_pins_consultores(dados_pins):
     """
     (RTDB) Salva a lista de PINs dos consultores.
     """
-    if not db_ref: return False
+    if not db_ref:
+        return _local_json_write('pins_consultores.json', dados_pins)
     try:
         ref = db_ref.child('pins_consultores')
         ref.set(dados_pins)

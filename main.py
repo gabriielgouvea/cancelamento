@@ -7,9 +7,7 @@ Descrição: Este é o arquivo principal que executa o aplicativo.
 """
 
 import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
 from ttkbootstrap.widgets import DateEntry, ToastNotification
-from ttkbootstrap.widgets.scrolled import ScrolledFrame 
 from tkinter import messagebox, Toplevel, Entry, Button, StringVar, \
     PhotoImage, Listbox, filedialog, END, ANCHOR
 from tkinter import ttk as standard_ttk 
@@ -48,6 +46,8 @@ from view_folgas import FolgasView
 from view_liberacoes import LiberacoesView
 from view_achados import AchadosView 
 from view_developer import DeveloperView
+from view_notinhas import NotinhasView
+from view_dinheiro import DinheiroView
 
 from app_utils import formatar_data
 
@@ -79,8 +79,25 @@ class App(ttk.Window):
         
         self.firebase_connected = fm.init_firebase()
         if not self.firebase_connected:
-            self.destroy()
-            return
+            # Se não conectou, tenta permitir modo offline (sem nuvem)
+            try:
+                offline = getattr(fm, 'is_offline_mode', lambda: True)()
+                if offline:
+                    msg = (
+                        "Não foi possível conectar ao Firebase (chave ausente/erro de conexão).\n\n"
+                        "Deseja iniciar em MODO OFFLINE (sem nuvem)?\n\n"
+                        "- Login e Folgas usam arquivos locais em 'data/'\n"
+                        "- Recursos que dependem da nuvem podem ficar indisponíveis"
+                    )
+                    if not messagebox.askyesno("Firebase indisponível", msg):
+                        self.destroy()
+                        return
+                else:
+                    self.destroy()
+                    return
+            except Exception:
+                self.destroy()
+                return
 
         self.FONT_MAIN = ("Helvetica", 11)
         self.FONT_BOLD = ("Helvetica", 11, "bold")
@@ -109,6 +126,9 @@ class App(ttk.Window):
         
         self.consultor_logado_data = {}
         self.tracked_scrolled_frames = []
+        self.current_view = None
+        self.notinhas_state = {"tipo": "Crédito", "lancamentos": []}
+        self.dinheiro_state = {"caixa_atual": "01", "caixas": {"01": {}, "02": {}}}
 
         self.load_images()
         self.create_custom_styles()
@@ -154,11 +174,15 @@ class App(ttk.Window):
             self.icon_developer = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "developer.png")).resize(ICON_SIZE))
             self.icon_liberacoes = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "entries.png")).resize(ICON_SIZE))
             self.icon_lostfound = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "lost_found.png")).resize(ICON_SIZE))
+            self.icon_notinhas = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "notinhas.png")).resize(ICON_SIZE))
+            self.icon_dinheiro = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "money.png")).resize(ICON_SIZE))
         except Exception as e:
             messagebox.showerror("Erro ao Carregar Ícones", f"Não foi possível carregar alguns ícones da pasta 'data'.\n\nErro: {e}")
             self.icon_simulador = self.icon_comissao = self.icon_folgas = self.default_icon
             self.icon_updates = self.icon_developer = self.icon_liberacoes = self.default_icon
             self.icon_lostfound = self.default_icon
+            self.icon_notinhas = self.default_icon
+            self.icon_dinheiro = self.default_icon
 
         try:
             img_logo_original = Image.open(os.path.join(DATA_FOLDER_PATH, "logo_completa.png"))
@@ -264,15 +288,17 @@ class App(ttk.Window):
         self.nav_buttons = {}
 
         self.create_nav_button(self.sidebar_frame, 2, "Simulador", "simulador", self.icon_simulador, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 3, "Calculadora Comissão", "comissao", self.icon_comissao, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 4, "Folgas", "folgas", self.icon_folgas, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 5, "Liberações", "liberacoes", self.icon_liberacoes, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 6, "Achados e Perdidos", "achados", self.icon_lostfound, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 7, "Área do Desenvolvedor", "developer", self.icon_developer, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 8, "Verificar Atualizações", "updates", self.icon_updates, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 3, "Contagem Notinhas", "notinhas", self.icon_notinhas, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 4, "Contagem Dinheiro", "dinheiro", self.icon_dinheiro, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 5, "Calculadora Comissão", "comissao", self.icon_comissao, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 6, "Folgas", "folgas", self.icon_folgas, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 7, "Liberações", "liberacoes", self.icon_liberacoes, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 8, "Achados e Perdidos", "achados", self.icon_lostfound, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 9, "Área do Desenvolvedor", "developer", self.icon_developer, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 10, "Verificar Atualizações", "updates", self.icon_updates, self.on_nav_select)
         
-        self.sidebar_frame.grid_rowconfigure(9, weight=1) 
-        ttk.Separator(self.sidebar_frame).grid(row=10, column=0, sticky='sew', padx=10, pady=10) 
+        self.sidebar_frame.grid_rowconfigure(11, weight=1) 
+        ttk.Separator(self.sidebar_frame).grid(row=12, column=0, sticky='sew', padx=10, pady=10) 
 
     def on_nav_select(self):
         view_name = self.nav_var.get()
@@ -298,15 +324,24 @@ class App(ttk.Window):
         toast.show_toast()
 
     def show_view(self, view_name):
+        try:
+            current_view = getattr(self, 'current_view', None)
+            on_close = getattr(current_view, 'on_close', None)
+            if callable(on_close):
+                on_close()
+        except Exception:
+            pass
+
         for widget in self.main_frame.winfo_children():
             try:
-                if hasattr(widget, 'view_instance') and hasattr(widget.view_instance, 'on_close'):
-                    widget.view_instance.on_close()
                 widget.destroy()
-            except Exception as e: pass 
+            except Exception:
+                pass
         
         view = None 
         if view_name == "simulador": view = SimuladorView(self, self.main_frame)
+        elif view_name == "notinhas": view = NotinhasView(self, self.main_frame)
+        elif view_name == "dinheiro": view = DinheiroView(self, self.main_frame)
         elif view_name == "comissao": view = ComissaoView(self, self.main_frame)
         elif view_name == "folgas": view = FolgasView(self, self.main_frame)
         elif view_name == "liberacoes": view = LiberacoesView(self, self.main_frame)
@@ -314,8 +349,8 @@ class App(ttk.Window):
             frame = ttk.Frame(self.main_frame); frame.pack(expand=True)
             ttk.Label(frame, text="Em Desenvolvimento", font=self.FONT_TITLE, style="secondary.TLabel").pack()
         elif view_name == "developer_area": view = DeveloperView(self, self.main_frame)
-        
-        if view and self.main_frame.winfo_children(): self.main_frame.winfo_children()[-1].view_instance = view
+
+        self.current_view = view
 
     def show_login_view(self, force_dev_login=False):
         self.sidebar_frame.grid_remove()
@@ -350,8 +385,9 @@ class App(ttk.Window):
             if nome not in self.nomes_consultores: messagebox.showwarning("Inválido", "Consultor não listado."); return
 
             # --- SEGURANÇA: PEDIR PIN NO LOGIN ---
-            pins = fm.carregar_pins_consultores()
-            pin_correto = pins.get(nome, "0000")
+            pins_raw = fm.carregar_pins_consultores()
+            pins = pins_raw if isinstance(pins_raw, dict) else {}
+            pin_correto = str(pins.get(nome, "0000"))
             
             # Se PIN for 0000, deixa passar (primeiro acesso), senão, pede
             if pin_correto != "0000":
