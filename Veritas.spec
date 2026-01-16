@@ -6,7 +6,16 @@ a = Analysis(
     ['main.py'], 
     pathex=[], 
     binaries=[],
-    datas=[ ('data', 'data') ],
+    # Empacota assets (ícones/imagens) e JSONs de base.
+    # ATENÇÃO: não empacotar credenciais (data/firebase-key.json).
+    datas=[
+        ('data\\*.png', 'data'),
+        ('data\\*.jpg', 'data'),
+        ('data\\*.jpeg', 'data'),
+        ('data\\*.ico', 'data'),
+        ('data\\consultores.json', 'data'),
+        ('data\\folgas.json', 'data'),
+    ],
     hiddenimports=[
         'ttkbootstrap',
         'piexif',
