@@ -277,6 +277,35 @@ class ComissaoView:
         except Exception:
             return default
 
+    def _fmt_registrado_em(self, ts_value) -> str:
+        if not ts_value:
+            return ""
+        try:
+            # Normalmente vem de str(datetime.now())
+            dt = datetime.fromisoformat(str(ts_value))
+            return dt.strftime("%d/%m/%Y %H:%M")
+        except Exception:
+            return str(ts_value)
+
+    def _rotulo_tipo_fechamento(self, d: dict) -> str:
+        if not isinstance(d, dict):
+            return ""
+
+        tipo = d.get('tipo_fechamento')
+        if tipo == 'planos_avulsos':
+            return "Plano diário (sem PDF)"
+
+        eh_semanal = bool(d.get('periodo')) or tipo == 'semanal'
+        try:
+            qtd = int(d.get('qtd_planos', 0) or 0)
+        except Exception:
+            qtd = 0
+        tem_plano = qtd > 0
+
+        if eh_semanal:
+            return "PDF semanal com plano" if tem_plano else "PDF semanal sem plano"
+        return "PDF diário com plano" if tem_plano else "PDF diário sem plano"
+
     def abrir_popup_planos_avulsos(self):
         consultor = getattr(self, 'nome_consultor_logado', None)
         if not consultor or consultor == 'N/A':
@@ -805,15 +834,19 @@ class ComissaoView:
         frame_res.grid(row=2, column=0, sticky='nsew')
         scroll = ttk.Scrollbar(frame_res, orient="vertical"); scroll.pack(side='right', fill='y')
         
-        cols = ('data', 'prod', 'plan', 'total')
+        cols = ('data', 'registrado', 'tipo', 'prod', 'plan', 'total')
         self.tree_saldo = ttk.Treeview(frame_res, columns=cols, show='headings', yscrollcommand=scroll.set)
         scroll.config(command=self.tree_saldo.yview)
         
         self.tree_saldo.heading('data', text='Data/Período')
+        self.tree_saldo.heading('registrado', text='Registrado em')
+        self.tree_saldo.heading('tipo', text='Tipo')
         self.tree_saldo.heading('prod', text='Comissão')
         self.tree_saldo.heading('plan', text='Planos')
         self.tree_saldo.heading('total', text='Total')
         self.tree_saldo.column('data', width=170, anchor='center')
+        self.tree_saldo.column('registrado', width=130, anchor='center')
+        self.tree_saldo.column('tipo', width=190, anchor='w')
         self.tree_saldo.column('prod', width=100, anchor='e')
         self.tree_saldo.column('plan', width=100, anchor='e')
         self.tree_saldo.column('total', width=100, anchor='e')
@@ -865,6 +898,8 @@ class ComissaoView:
             vt = d.get('total_dia', 0)
             qtd_p = d.get('qtd_planos', 0)
             data_exibicao = d.get('periodo') or d.get('data', '')
+            registrado_em = self._fmt_registrado_em(d.get('timestamp'))
+            tipo_rotulo = self._rotulo_tipo_fechamento(d)
             descricao = d.get('descricao') or ("Fechamento Semanal" if d.get('tipo_fechamento') == 'semanal' or d.get('periodo') else "Fechamento Diário")
 
             if tipo == "Apenas Comissões": vt = vp; vl = 0
@@ -881,7 +916,14 @@ class ComissaoView:
             })
             
             total_geral += vt
-            self.tree_saldo.insert('', 'end', values=(data_exibicao, formatar_reais(vp), formatar_reais(vl), formatar_reais(vt)))
+            self.tree_saldo.insert('', 'end', values=(
+                data_exibicao,
+                registrado_em,
+                tipo_rotulo,
+                formatar_reais(vp),
+                formatar_reais(vl),
+                formatar_reais(vt)
+            ))
 
         self.saldo_acumulado_mes = total_geral
         

@@ -484,16 +484,20 @@ class DeveloperView:
         ttk.Button(frame_filtros, text="🔄 Atualizar Lista", command=self.populate_fechamentos_tree, style="secondary.Outline.TButton").pack(side='left', padx=15)
         
         # Tabela Principal
-        cols = ('data', 'consultor', 'v_pdf', 'v_planos', 'total', 'id_oculto', 'mes_oculto')
+        cols = ('data', 'registrado', 'tipo', 'consultor', 'v_pdf', 'v_planos', 'total', 'id_oculto', 'mes_oculto')
         self.tree_caixa = ttk.Treeview(parent_frame, columns=cols, show='headings', selectmode='browse', height=15)
         
         self.tree_caixa.heading('data', text='Data/Período')
+        self.tree_caixa.heading('registrado', text='Registrado em')
+        self.tree_caixa.heading('tipo', text='Tipo')
         self.tree_caixa.heading('consultor', text='Consultor')
         self.tree_caixa.heading('v_pdf', text='Comissão (PDF)')
         self.tree_caixa.heading('v_planos', text='Comissão Planos')
         self.tree_caixa.heading('total', text='Total do Dia')
         
         self.tree_caixa.column('data', width=170, anchor='center')
+        self.tree_caixa.column('registrado', width=130, anchor='center')
+        self.tree_caixa.column('tipo', width=190, anchor='w')
         self.tree_caixa.column('consultor', width=200, anchor='w')
         self.tree_caixa.column('v_pdf', width=120, anchor='e')
         self.tree_caixa.column('v_planos', width=120, anchor='e')
@@ -543,11 +547,37 @@ class DeveloperView:
                         # Tenta criar objeto data para ordenar
                         dt_obj = datetime.strptime(dados.get('data'), "%d/%m/%Y")
                         data_exibicao = dados.get('periodo') or dados.get('data')
-                        if dados.get('tipo_fechamento') == 'planos_avulsos' and not dados.get('periodo'):
-                            data_exibicao = f"{data_exibicao} (Planos s/ PDF)"
+
+                        # Registrado em
+                        ts = dados.get('timestamp')
+                        registrado_em = ""
+                        if ts:
+                            try:
+                                registrado_em = datetime.fromisoformat(str(ts)).strftime("%d/%m/%Y %H:%M")
+                            except Exception:
+                                registrado_em = str(ts)
+
+                        # Tipo
+                        tipo_ref = dados.get('tipo_fechamento')
+                        if tipo_ref == 'planos_avulsos':
+                            tipo_rotulo = "Plano diário (sem PDF)"
+                        else:
+                            eh_semanal = bool(dados.get('periodo')) or tipo_ref == 'semanal'
+                            try:
+                                qtd = int(dados.get('qtd_planos', 0) or 0)
+                            except Exception:
+                                qtd = 0
+                            tem_plano = qtd > 0
+                            if eh_semanal:
+                                tipo_rotulo = "PDF semanal com plano" if tem_plano else "PDF semanal sem plano"
+                            else:
+                                tipo_rotulo = "PDF diário com plano" if tem_plano else "PDF diário sem plano"
+
                         items_para_exibir.append({
                             'dt_obj': dt_obj,
                             'data_str': data_exibicao,
+                            'registrado_em': registrado_em,
+                            'tipo': tipo_rotulo,
                             'consultor': consultor,
                             'v_pdf': dados.get('comissao_produtos', 0),
                             'v_planos': dados.get('comissao_planos', 0),
@@ -563,6 +593,8 @@ class DeveloperView:
         for it in items_para_exibir:
             self.tree_caixa.insert('', 'end', values=(
                 it['data_str'],
+                it['registrado_em'],
+                it['tipo'],
                 it['consultor'],
                 formatar_reais(it['v_pdf']),
                 formatar_reais(it['v_planos']),
@@ -578,7 +610,7 @@ class DeveloperView:
             messagebox.showwarning("Seleção", "Selecione um registro para excluir."); return
             
         vals = self.tree_caixa.item(sel, 'values')
-        data_reg, consultor, v_total, id_reg, mes_ano = vals[0], vals[1], vals[4], vals[5], vals[6]
+        data_reg, consultor, v_total, id_reg, mes_ano = vals[0], vals[3], vals[6], vals[7], vals[8]
         
         dados_ref = self.dados_caixa.get(consultor, {}).get(mes_ano, {}).get(id_reg, {})
         tipo_ref = (dados_ref or {}).get('tipo_fechamento')
@@ -617,7 +649,7 @@ class DeveloperView:
 
         vals = self.tree_caixa.item(sel, 'values')
         # Recupera dados originais do dict para ter precisão (não usar string formatada)
-        consultor, id_reg, mes_ano = vals[1], vals[5], vals[6]
+        consultor, id_reg, mes_ano = vals[3], vals[7], vals[8]
         dados_originais = self.dados_caixa[consultor][mes_ano][id_reg]
         
         # Popup
