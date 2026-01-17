@@ -285,7 +285,7 @@ class ComissaoView:
 
         popup = Toplevel(self.app)
         popup.title("Registrar Planos do Dia")
-        self.app._center_popup(popup, 560, 420)
+        self.app._center_popup(popup, 560, 360)
         popup.transient(self.app)
         popup.grab_set()
 
@@ -295,17 +295,10 @@ class ComissaoView:
         ttk.Label(container, text="Registrar planos (sem PDF)", font=('Segoe UI', 14, 'bold')).pack(anchor='w')
         ttk.Label(container, text="Comissão fixa: R$ 40,00 por plano.", style='secondary.TLabel').pack(anchor='w', pady=(4, 12))
 
-        frame_info = ttk.Labelframe(container, text="Confirmação", padding=12)
+        frame_info = ttk.Labelframe(container, text="Consultor", padding=12)
         frame_info.pack(fill='x')
 
-        ttk.Label(frame_info, text=f"Consultor: {consultor}").grid(row=0, column=0, sticky='w')
-
-        var_confirmo = IntVar(value=0)
-        ttk.Checkbutton(
-            frame_info,
-            text="Confirmo que estou registrando para este consultor",
-            variable=var_confirmo
-        ).grid(row=1, column=0, sticky='w', pady=(8, 0))
+        ttk.Label(frame_info, text=f"{consultor}", font=('Segoe UI', 11, 'bold')).grid(row=0, column=0, sticky='w')
 
         frame_dados = ttk.Labelframe(container, text="Dados do registro", padding=12)
         frame_dados.pack(fill='x', pady=(12, 0))
@@ -317,10 +310,6 @@ class ComissaoView:
         ttk.Label(frame_dados, text="Data do registro:").grid(row=1, column=0, sticky='w', padx=(0, 8))
         var_data = StringVar(value=self._hoje_str())
         ttk.Entry(frame_dados, textvariable=var_data, width=14).grid(row=1, column=1, sticky='w')
-
-        ttk.Label(frame_dados, text="PIN:").grid(row=2, column=0, sticky='w', padx=(0, 8), pady=(10, 0))
-        var_pin = StringVar(value="")
-        ttk.Entry(frame_dados, textvariable=var_pin, width=14, show='•').grid(row=2, column=1, sticky='w', pady=(10, 0))
 
         lbl_preview = ttk.Label(container, text="Total: R$ 40,00", font=('Segoe UI', 12, 'bold'))
         lbl_preview.pack(anchor='w', pady=(14, 0))
@@ -339,10 +328,6 @@ class ComissaoView:
         frame_botoes.pack(fill='x', pady=(18, 0))
 
         def registrar():
-            if int(var_confirmo.get()) != 1:
-                messagebox.showwarning("Confirmação", "Marque a confirmação do consultor antes de continuar.")
-                return
-
             qtd = self._parse_int(var_qtd.get(), default=-1)
             if qtd <= 0:
                 messagebox.showwarning("Atenção", "Informe uma quantidade de planos válida (mínimo 1).")
@@ -355,11 +340,6 @@ class ComissaoView:
                 messagebox.showwarning("Atenção", "Data inválida. Use o formato dd/mm/aaaa.")
                 return
 
-            pin = str(var_pin.get()).strip()
-            if not pin:
-                messagebox.showwarning("Atenção", "Informe o PIN para confirmar.")
-                return
-
             popup.destroy()
 
             self.registrar_no_caixa(
@@ -370,7 +350,7 @@ class ComissaoView:
                 tipo_fechamento='planos_avulsos',
                 descricao=f"Planos (sem PDF) — {qtd} x R$ 40,00",
                 validar_pin=True,
-                pin_informado=pin,
+                pin_informado=None,
             )
 
         ttk.Button(frame_botoes, text="Cancelar", command=popup.destroy, style='secondary.TButton').pack(side='right')
