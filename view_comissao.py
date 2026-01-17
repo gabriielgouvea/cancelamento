@@ -17,6 +17,7 @@ import traceback
 from datetime import date, datetime
 import calendar
 import random
+import re
 
 # --- Importa para PDF ---
 try:
@@ -167,10 +168,15 @@ class ComissaoView:
         container = self.frame_resultado_comissao
         
         # 1. Botão Fechamento
+        info = resultados.get("info_cabecalho", {})
+        periodo_inicio, periodo_fim = self._parse_periodo_datas(info.get("periodo", ""))
+        eh_periodo = bool(periodo_inicio and periodo_fim and periodo_inicio != periodo_fim)
+        txt_btn_fechamento = "Realizar Fechamento Semanal ➔" if eh_periodo else "Realizar Fechamento do Dia ➔"
+
         frame_acao = ttk.Frame(container)
         frame_acao.pack(fill='x', pady=(0, 15))
         ttk.Label(frame_acao, text="Verifique os valores abaixo. Se estiver tudo certo:", font=("Segoe UI", 10), style="secondary.TLabel").pack(side='left')
-        ttk.Button(frame_acao, text="Realizar Fechamento do Dia ➔", style="success.TButton", command=self.abrir_popup_fechamento).pack(side='right')
+        ttk.Button(frame_acao, text=txt_btn_fechamento, style="success.TButton", command=self.abrir_popup_fechamento).pack(side='right')
 
         # 2. Cabeçalho
         info = resultados.get("info_cabecalho", {})
@@ -219,24 +225,164 @@ class ComissaoView:
 
     # --- FLUXO DE FECHAMENTO E VALIDAÇÕES ---
 
+    def _parse_periodo_datas(self, periodo_texto: str):
+        """Extrai 1 ou 2 datas (dd/mm/yyyy) do texto de período do PDF.
+
+        Retorna (inicio, fim) como objetos date ou (None, None) se não conseguir.
+        Exemplos esperados:
+        - "03/01/2026" (diário)
+        - "03/01/2026 a 09/01/2026" (semanal)
+        """
+        if not periodo_texto:
+            return None, None
+        datas = re.findall(r"\b\d{2}/\d{2}/\d{4}\b", str(periodo_texto))
+        if not datas:
+            return None, None
+        try:
+            inicio = datetime.strptime(datas[0], "%d/%m/%Y").date()
+        except Exception:
+            return None, None
+
+        if len(datas) >= 2:
+            try:
+                fim = datetime.strptime(datas[1], "%d/%m/%Y").date()
+            except Exception:
+                fim = inicio
+        else:
+            fim = inicio
+
+        # Normaliza ordem
+        if fim < inicio:
+            inicio, fim = fim, inicio
+        return inicio, fim
+
+    def _fmt_data(self, dt: date) -> str:
+        return dt.strftime("%d/%m/%Y")
+
+    def _popup_confirmar_substituicao_fechamento(self, data_registro_str: str, registro_existente: dict, registro_novo: dict):
+        """Popup moderno para lidar com duplicidade de fechamento.
+
+        Retorna True se usuário escolher substituir, False para manter o antigo.
+        """
+        popup = Toplevel(self.app)
+        popup.title("Fechamento duplicado")
+        self.app._center_popup(popup, 520, 360)
+        popup.transient(self.app)
+        popup.grab_set()
+
+        container = ttk.Frame(popup, padding=18)
+        container.pack(fill='both', expand=True)
+
+        # Cabeçalho
+        hdr = ttk.Frame(container)
+        hdr.pack(fill='x', pady=(0, 10))
+        ttk.Label(hdr, text="⚠️", font=("Segoe UI", 20), bootstyle='warning').pack(side='left')
+        ttk.Label(
+            hdr,
+            text=f"Já existe um fechamento registrado em {data_registro_str}",
+            font=("Segoe UI", 12, "bold"),
+            bootstyle='warning'
+        ).pack(side='left', padx=10)
+
+        ttk.Label(
+            container,
+            text="Escolha o que deseja fazer:",
+            bootstyle='secondary'
+        ).pack(anchor='w', pady=(0, 10))
+
+        def resumo(reg: dict):
+            if not isinstance(reg, dict):
+                return "(sem dados)", ""
+            tipo = reg.get('tipo_fechamento')
+            periodo = reg.get('periodo')
+            if periodo:
+                titulo = f"Fechamento semanal ({periodo})"
+            else:
+                titulo = "Fechamento diário"
+            if tipo and not periodo:
+                titulo = f"{titulo} ({tipo})" if tipo != 'diario' else titulo
+            tot = reg.get('total_dia', 0)
+            vp = reg.get('comissao_produtos', 0)
+            vl = reg.get('comissao_planos', 0)
+            qtd = reg.get('qtd_planos', 0)
+            detalhe = f"Total: {formatar_reais(tot)} | PDF: {formatar_reais(vp)} | Planos: {formatar_reais(vl)} ({qtd})"
+            return titulo, detalhe
+
+        # Cards (Existente / Atual)
+        cards = ttk.Frame(container)
+        cards.pack(fill='x', pady=(0, 10))
+        cards.grid_columnconfigure((0, 1), weight=1)
+
+        tit_old, det_old = resumo(registro_existente)
+        tit_new, det_new = resumo(registro_novo)
+
+        fr_old = ttk.Frame(cards, bootstyle='light', padding=12)
+        fr_old.grid(row=0, column=0, sticky='nsew', padx=(0, 6))
+        ttk.Label(fr_old, text="Registro existente", font=("Segoe UI", 10, "bold"), bootstyle='secondary').pack(anchor='w')
+        ttk.Label(fr_old, text=tit_old, wraplength=230).pack(anchor='w', pady=(6, 2))
+        ttk.Label(fr_old, text=det_old, bootstyle='secondary', wraplength=230).pack(anchor='w')
+
+        fr_new = ttk.Frame(cards, bootstyle='light', padding=12)
+        fr_new.grid(row=0, column=1, sticky='nsew', padx=(6, 0))
+        ttk.Label(fr_new, text="Registro atual (novo)", font=("Segoe UI", 10, "bold"), bootstyle='primary').pack(anchor='w')
+        ttk.Label(fr_new, text=tit_new, wraplength=230).pack(anchor='w', pady=(6, 2))
+        ttk.Label(fr_new, text=det_new, bootstyle='secondary', wraplength=230).pack(anchor='w')
+
+        ttk.Separator(container).pack(fill='x', pady=10)
+
+        # Botões
+        result = {'substituir': False}
+
+        def escolher_substituir():
+            result['substituir'] = True
+            popup.destroy()
+
+        def escolher_manter():
+            result['substituir'] = False
+            popup.destroy()
+
+        btns = ttk.Frame(container)
+        btns.pack(side='bottom', fill='x')
+
+        ttk.Button(
+            btns,
+            text="Manter o antigo",
+            style="secondary.Outline.TButton",
+            command=escolher_manter,
+            width=18
+        ).pack(side='left')
+
+        ttk.Button(
+            btns,
+            text="Substituir pelo atual",
+            style="danger.TButton",
+            command=escolher_substituir
+        ).pack(side='right', fill='x', expand=True)
+
+        popup.bind("<Escape>", lambda e: escolher_manter())
+        popup.bind("<Return>", lambda e: escolher_substituir())
+
+        self.app.wait_window(popup)
+        return bool(result['substituir'])
+
     def abrir_popup_fechamento(self):
         if not self.resultado_atual_pdf: return
 
-        # --- VALIDAÇÃO 2: DATA ---
+        # --- VALIDAÇÃO 2: DATA / PERÍODO ---
         periodo_texto = self.resultado_atual_pdf.get("info_cabecalho", {}).get("periodo", "")
-        data_pdf = None
-        try:
-            data_str = periodo_texto.split(' ')[0] 
-            data_pdf = datetime.strptime(data_str.strip(), "%d/%m/%Y").date()
-        except: pass
+        periodo_inicio, periodo_fim = self._parse_periodo_datas(periodo_texto)
 
         hoje = date.today()
-        data_divergente = (data_pdf and data_pdf != hoje)
+        eh_periodo = bool(periodo_inicio and periodo_fim and periodo_inicio != periodo_fim)
+
+        # Diário: mantém validação antiga (data do PDF != hoje)
+        data_pdf = periodo_inicio
+        data_divergente = (not eh_periodo) and bool(data_pdf and data_pdf != hoje)
 
         # POPUP
         popup = Toplevel(self.app)
         popup.title("Registrar Fechamento")
-        altura = 380 if data_divergente else 280
+        altura = 440 if eh_periodo else (380 if data_divergente else 280)
         self.app._center_popup(popup, 400, altura)
         container = ttk.Frame(popup, padding=20)
         container.pack(fill='both', expand=True)
@@ -250,11 +396,39 @@ class ComissaoView:
         entry_planos.select_range(0, END)
         entry_planos.focus_set()
 
-        # 2. Data Divergente
-        var_data_registro = StringVar(value=hoje.strftime("%d/%m/%Y")) 
+        # 2. Data / Período
+        var_data_registro = StringVar(value=(self._fmt_data(periodo_fim) if periodo_fim else hoje.strftime("%d/%m/%Y")))
         entry_data = None
+        entry_periodo_inicio = None
+        entry_periodo_fim = None
 
-        if data_divergente:
+        if eh_periodo:
+            frame_aviso = ttk.Frame(container, bootstyle='warning', padding=10)
+            frame_aviso.pack(fill='x', pady=(0, 15))
+
+            msg = f"Este PDF é do período {self._fmt_data(periodo_inicio)} a {self._fmt_data(periodo_fim)}. Confirma as datas?"
+            ttk.Label(frame_aviso, text=msg, bootstyle='inverse-warning', wraplength=350).pack(anchor='w', pady=(0, 8))
+
+            ttk.Label(frame_aviso, text="Se não estiver correto, ajuste abaixo:", bootstyle='inverse-warning').pack(anchor='w')
+
+            frame_datas = ttk.Frame(frame_aviso, bootstyle='warning')
+            frame_datas.pack(fill='x', pady=(6, 0))
+            frame_datas.grid_columnconfigure((0, 1), weight=1)
+
+            ttk.Label(frame_datas, text="De:", bootstyle='inverse-warning').grid(row=0, column=0, sticky='w')
+            ttk.Label(frame_datas, text="Até:", bootstyle='inverse-warning').grid(row=0, column=1, sticky='w')
+
+            entry_periodo_inicio = DateEntry(frame_datas, dateformat="%d/%m/%Y", bootstyle='warning')
+            entry_periodo_inicio.entry.delete(0, END)
+            entry_periodo_inicio.entry.insert(0, self._fmt_data(periodo_inicio))
+            entry_periodo_inicio.grid(row=1, column=0, sticky='ew', padx=(0, 5), pady=(2, 0))
+
+            entry_periodo_fim = DateEntry(frame_datas, dateformat="%d/%m/%Y", bootstyle='warning')
+            entry_periodo_fim.entry.delete(0, END)
+            entry_periodo_fim.entry.insert(0, self._fmt_data(periodo_fim))
+            entry_periodo_fim.grid(row=1, column=1, sticky='ew', padx=(5, 0), pady=(2, 0))
+
+        elif data_divergente:
             frame_aviso = ttk.Frame(container, bootstyle='warning', padding=10)
             frame_aviso.pack(fill='x', pady=(0, 15))
             
@@ -270,7 +444,27 @@ class ComissaoView:
         def ir_para_confirmacao():
             try: qtd = int(var_planos.get())
             except ValueError: messagebox.showerror("Erro", "Número inválido.", parent=popup); return
-            
+
+            # Semanal: confirma/ajusta período e registra usando a data final (Até)
+            if eh_periodo and entry_periodo_inicio and entry_periodo_fim:
+                ini_str = entry_periodo_inicio.entry.get()
+                fim_str = entry_periodo_fim.entry.get()
+                try:
+                    ini_dt = datetime.strptime(ini_str, "%d/%m/%Y").date()
+                    fim_dt = datetime.strptime(fim_str, "%d/%m/%Y").date()
+                except Exception:
+                    messagebox.showerror("Erro", "Datas inválidas. Use o formato dd/mm/aaaa.", parent=popup)
+                    return
+                if fim_dt < ini_dt:
+                    messagebox.showerror("Erro", "A data final não pode ser menor que a inicial.", parent=popup)
+                    return
+
+                data_registro = self._fmt_data(fim_dt)
+                popup.destroy()
+                self.abrir_popup_confirmacao_final(qtd, data_registro, self._fmt_data(ini_dt), self._fmt_data(fim_dt))
+                return
+
+            # Diário
             data_final = entry_data.entry.get() if (data_divergente and entry_data) else var_data_registro.get()
             popup.destroy()
             self.abrir_popup_confirmacao_final(qtd, data_final)
@@ -278,7 +472,7 @@ class ComissaoView:
         ttk.Button(container, text="Próximo ➔", style="primary.TButton", command=ir_para_confirmacao).pack(side='bottom', fill='x')
         popup.bind("<Return>", lambda e: ir_para_confirmacao())
 
-    def abrir_popup_confirmacao_final(self, qtd_planos, data_registro_str):
+    def abrir_popup_confirmacao_final(self, qtd_planos, data_registro_str, periodo_inicio_str=None, periodo_fim_str=None):
         """Última checagem antes de salvar - CORRIGIDO UX"""
         popup = Toplevel(self.app)
         popup.title("Aguardando Confirmação") # Título menos 'final'
@@ -302,6 +496,8 @@ class ComissaoView:
             ttk.Label(fr, text=val, font=font_val, bootstyle=style).pack(side='right')
 
         add_line("Consultor:", self.nome_consultor_logado)
+        if periodo_inicio_str and periodo_fim_str:
+            add_line("Período (PDF):", f"{periodo_inicio_str} a {periodo_fim_str}")
         add_line("Data de Registro:", data_registro_str)
         ttk.Separator(container).pack(fill='x', pady=10)
         add_line("Valor Comissão:", formatar_reais(val_comissao))
@@ -311,7 +507,7 @@ class ComissaoView:
 
         def confirmar():
             popup.destroy()
-            self.registrar_no_caixa(val_comissao, val_planos, qtd_planos, data_registro_str)
+            self.registrar_no_caixa(val_comissao, val_planos, qtd_planos, data_registro_str, periodo_inicio_str, periodo_fim_str)
             
         def cancelar():
             popup.destroy()
@@ -323,7 +519,7 @@ class ComissaoView:
         ttk.Button(frame_btns, text="Cancelar", style="danger.Outline.TButton", command=cancelar, width=12).pack(side='left', padx=(0, 5))
         ttk.Button(frame_btns, text="✅ Confirmar", style="success.TButton", command=confirmar).pack(side='right', fill='x', expand=True, padx=(5, 0))
 
-    def registrar_no_caixa(self, valor_pdf, valor_planos, qtd_planos, data_registro_str):
+    def registrar_no_caixa(self, valor_pdf, valor_planos, qtd_planos, data_registro_str, periodo_inicio_str=None, periodo_fim_str=None):
         # 1. PIN
         if not self.pin_verificado_nesta_sessao:
             if not self._verificar_pin_consultor():
@@ -344,11 +540,46 @@ class ComissaoView:
             "total_dia": valor_pdf + valor_planos,
             "timestamp": str(agora)
         }
+
+        if periodo_inicio_str and periodo_fim_str:
+            novo["periodo_inicio"] = periodo_inicio_str
+            novo["periodo_fim"] = periodo_fim_str
+            novo["periodo"] = f"{periodo_inicio_str} a {periodo_fim_str}"
+            novo["tipo_fechamento"] = "semanal"
+        else:
+            novo["tipo_fechamento"] = "diario"
         
-        if self.nome_consultor_logado not in self.dados_caixa_comissao: self.dados_caixa_comissao[self.nome_consultor_logado] = {}
-        if mes_ano not in self.dados_caixa_comissao[self.nome_consultor_logado]: self.dados_caixa_comissao[self.nome_consultor_logado][mes_ano] = {}
-            
-        self.dados_caixa_comissao[self.nome_consultor_logado][mes_ano][id_unico] = novo
+        if self.nome_consultor_logado not in self.dados_caixa_comissao:
+            self.dados_caixa_comissao[self.nome_consultor_logado] = {}
+        if mes_ano not in self.dados_caixa_comissao[self.nome_consultor_logado]:
+            self.dados_caixa_comissao[self.nome_consultor_logado][mes_ano] = {}
+
+        # 2.1 Evita duplicidade na mesma data
+        registros_mes = self.dados_caixa_comissao[self.nome_consultor_logado][mes_ano]
+        duplicados = [
+            rid for rid, r in registros_mes.items()
+            if isinstance(r, dict) and r.get('data') == data_registro_str
+        ]
+        if duplicados:
+            periodo_antigo = registros_mes[duplicados[0]].get('periodo')
+            tipo_antigo = registros_mes[duplicados[0]].get('tipo_fechamento', 'diario')
+            # Popup mais intuitivo/bonito
+            registro_existente = registros_mes.get(duplicados[0], {})
+            substituir = self._popup_confirmar_substituicao_fechamento(
+                data_registro_str=data_registro_str,
+                registro_existente=registro_existente,
+                registro_novo=novo,
+            )
+            if not substituir:
+                return
+            # Remove todos os registros duplicados dessa data antes de salvar o novo
+            for rid in duplicados:
+                try:
+                    registros_mes.pop(rid, None)
+                except Exception:
+                    pass
+
+        registros_mes[id_unico] = novo
         
         if fm.salvar_caixa_comissao(self.dados_caixa_comissao):
             self.mostrar_popup_sucesso_bonito(valor_pdf, valor_planos, qtd_planos)
@@ -435,11 +666,11 @@ class ComissaoView:
         self.tree_saldo = ttk.Treeview(frame_res, columns=cols, show='headings', yscrollcommand=scroll.set)
         scroll.config(command=self.tree_saldo.yview)
         
-        self.tree_saldo.heading('data', text='Data')
+        self.tree_saldo.heading('data', text='Data/Período')
         self.tree_saldo.heading('prod', text='Comissão')
         self.tree_saldo.heading('plan', text='Planos')
         self.tree_saldo.heading('total', text='Total')
-        self.tree_saldo.column('data', width=100, anchor='center')
+        self.tree_saldo.column('data', width=170, anchor='center')
         self.tree_saldo.column('prod', width=100, anchor='e')
         self.tree_saldo.column('plan', width=100, anchor='e')
         self.tree_saldo.column('total', width=100, anchor='e')
@@ -477,7 +708,8 @@ class ComissaoView:
         for mes, dados_mes in recs.items():
             for uid, d in dados_mes.items():
                 try:
-                    dt = datetime.strptime(d['data'], "%d/%m/%Y").date()
+                    dt_str = d.get('data') or d.get('periodo_fim')
+                    dt = datetime.strptime(dt_str, "%d/%m/%Y").date()
                     if d_ini <= dt <= d_fim:
                         items.append((dt, d))
                 except: pass
@@ -489,13 +721,16 @@ class ComissaoView:
             vl = d.get('comissao_planos', 0)
             vt = d.get('total_dia', 0)
             qtd_p = d.get('qtd_planos', 0)
+            data_exibicao = d.get('periodo') or d.get('data', '')
+            descricao = "Fechamento Semanal" if d.get('tipo_fechamento') == 'semanal' or d.get('periodo') else "Fechamento Diário"
 
             if tipo == "Apenas Comissões": vt = vp; vl = 0
             elif tipo == "Apenas Planos": vt = vl; vp = 0
             
             # Guarda para PDF
             self.itens_extrato_atual.append({
-                'data': d['data'], 
+                'data': data_exibicao,
+                'descricao': descricao,
                 'comissao': vp, 
                 'planos_val': vl, 
                 'planos_qtd': qtd_p, 
@@ -503,7 +738,7 @@ class ComissaoView:
             })
             
             total_geral += vt
-            self.tree_saldo.insert('', 'end', values=(d['data'], formatar_reais(vp), formatar_reais(vl), formatar_reais(vt)))
+            self.tree_saldo.insert('', 'end', values=(data_exibicao, formatar_reais(vp), formatar_reais(vl), formatar_reais(vt)))
 
         self.saldo_acumulado_mes = total_geral
         
@@ -605,7 +840,7 @@ class ComissaoView:
             for it in self.itens_extrato_atual:
                 row = [
                     it['data'],
-                    "Fechamento Diário",
+                    it.get('descricao', "Fechamento Diário"),
                     str(it['planos_qtd']),
                     formatar_reais(it['planos_val']),
                     formatar_reais(it['comissao']),

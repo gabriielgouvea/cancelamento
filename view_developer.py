@@ -487,13 +487,13 @@ class DeveloperView:
         cols = ('data', 'consultor', 'v_pdf', 'v_planos', 'total', 'id_oculto', 'mes_oculto')
         self.tree_caixa = ttk.Treeview(parent_frame, columns=cols, show='headings', selectmode='browse', height=15)
         
-        self.tree_caixa.heading('data', text='Data do Registro')
+        self.tree_caixa.heading('data', text='Data/Período')
         self.tree_caixa.heading('consultor', text='Consultor')
         self.tree_caixa.heading('v_pdf', text='Comissão (PDF)')
         self.tree_caixa.heading('v_planos', text='Comissão Planos')
         self.tree_caixa.heading('total', text='Total do Dia')
         
-        self.tree_caixa.column('data', width=100, anchor='center')
+        self.tree_caixa.column('data', width=170, anchor='center')
         self.tree_caixa.column('consultor', width=200, anchor='w')
         self.tree_caixa.column('v_pdf', width=120, anchor='e')
         self.tree_caixa.column('v_planos', width=120, anchor='e')
@@ -542,9 +542,10 @@ class DeveloperView:
                     try:
                         # Tenta criar objeto data para ordenar
                         dt_obj = datetime.strptime(dados.get('data'), "%d/%m/%Y")
+                        data_exibicao = dados.get('periodo') or dados.get('data')
                         items_para_exibir.append({
                             'dt_obj': dt_obj,
-                            'data_str': dados.get('data'),
+                            'data_str': data_exibicao,
                             'consultor': consultor,
                             'v_pdf': dados.get('comissao_produtos', 0),
                             'v_planos': dados.get('comissao_planos', 0),
