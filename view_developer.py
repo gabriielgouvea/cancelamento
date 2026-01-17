@@ -543,6 +543,8 @@ class DeveloperView:
                         # Tenta criar objeto data para ordenar
                         dt_obj = datetime.strptime(dados.get('data'), "%d/%m/%Y")
                         data_exibicao = dados.get('periodo') or dados.get('data')
+                        if dados.get('tipo_fechamento') == 'planos_avulsos' and not dados.get('periodo'):
+                            data_exibicao = f"{data_exibicao} (Planos s/ PDF)"
                         items_para_exibir.append({
                             'dt_obj': dt_obj,
                             'data_str': data_exibicao,
@@ -578,7 +580,23 @@ class DeveloperView:
         vals = self.tree_caixa.item(sel, 'values')
         data_reg, consultor, v_total, id_reg, mes_ano = vals[0], vals[1], vals[4], vals[5], vals[6]
         
-        msg = f"ATENÇÃO: Você está prestes a excluir o fechamento de {consultor} do dia {data_reg}.\nValor: {v_total}\n\nEssa ação é irreversível. Confirma?"
+        dados_ref = self.dados_caixa.get(consultor, {}).get(mes_ano, {}).get(id_reg, {})
+        tipo_ref = (dados_ref or {}).get('tipo_fechamento')
+        if (dados_ref or {}).get('periodo') or tipo_ref == 'semanal':
+            rotulo = "Fechamento Semanal"
+        elif tipo_ref == 'planos_avulsos':
+            rotulo = "Planos (sem PDF)"
+        else:
+            rotulo = "Fechamento Diário"
+
+        msg = (
+            f"ATENÇÃO: Você está prestes a excluir um registro.\n\n"
+            f"Tipo: {rotulo}\n"
+            f"Consultor: {consultor}\n"
+            f"Data/Período: {data_reg}\n"
+            f"Valor: {v_total}\n\n"
+            f"Essa ação é irreversível. Confirma?"
+        )
         if not messagebox.askyesno("Confirmar Exclusão", msg): return
         
         try:

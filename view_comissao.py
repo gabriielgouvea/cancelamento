@@ -96,6 +96,15 @@ class ComissaoView:
                                 width=40)
         btn_upload.pack(side='left', ipady=5, pady=5)
 
+        btn_planos = ttk.Button(
+            frame_upload,
+            text="Registrar Planos do Dia",
+            command=self.abrir_popup_planos_avulsos,
+            style='info.TButton',
+            width=24
+        )
+        btn_planos.pack(side='left', ipady=5, pady=5, padx=(10, 0))
+
         self.lbl_pdf_selecionado = ttk.Label(frame_upload, text="Nenhum arquivo selecionado.", style='secondary.TLabel')
         self.lbl_pdf_selecionado.pack(side='left', padx=10)
 
@@ -258,6 +267,114 @@ class ComissaoView:
 
     def _fmt_data(self, dt: date) -> str:
         return dt.strftime("%d/%m/%Y")
+
+    def _hoje_str(self) -> str:
+        return date.today().strftime('%d/%m/%Y')
+
+    def _parse_int(self, value: str, default: int = 0) -> int:
+        try:
+            return int(str(value).strip())
+        except Exception:
+            return default
+
+    def abrir_popup_planos_avulsos(self):
+        consultor = getattr(self, 'nome_consultor_logado', None)
+        if not consultor or consultor == 'N/A':
+            messagebox.showwarning("Atenção", "Consultor não identificado. Faça login novamente.")
+            return
+
+        popup = Toplevel(self.app)
+        popup.title("Registrar Planos do Dia")
+        self.app._center_popup(popup, 560, 420)
+        popup.transient(self.app)
+        popup.grab_set()
+
+        container = ttk.Frame(popup, padding=18)
+        container.pack(fill='both', expand=True)
+
+        ttk.Label(container, text="Registrar planos (sem PDF)", font=('Segoe UI', 14, 'bold')).pack(anchor='w')
+        ttk.Label(container, text="Comissão fixa: R$ 40,00 por plano.", style='secondary.TLabel').pack(anchor='w', pady=(4, 12))
+
+        frame_info = ttk.Labelframe(container, text="Confirmação", padding=12)
+        frame_info.pack(fill='x')
+
+        ttk.Label(frame_info, text=f"Consultor: {consultor}").grid(row=0, column=0, sticky='w')
+
+        var_confirmo = IntVar(value=0)
+        ttk.Checkbutton(
+            frame_info,
+            text="Confirmo que estou registrando para este consultor",
+            variable=var_confirmo
+        ).grid(row=1, column=0, sticky='w', pady=(8, 0))
+
+        frame_dados = ttk.Labelframe(container, text="Dados do registro", padding=12)
+        frame_dados.pack(fill='x', pady=(12, 0))
+
+        ttk.Label(frame_dados, text="Quantidade de planos:").grid(row=0, column=0, sticky='w', padx=(0, 8), pady=(0, 8))
+        var_qtd = StringVar(value="1")
+        ttk.Entry(frame_dados, textvariable=var_qtd, width=10).grid(row=0, column=1, sticky='w', pady=(0, 8))
+
+        ttk.Label(frame_dados, text="Data do registro:").grid(row=1, column=0, sticky='w', padx=(0, 8))
+        var_data = StringVar(value=self._hoje_str())
+        ttk.Entry(frame_dados, textvariable=var_data, width=14).grid(row=1, column=1, sticky='w')
+
+        ttk.Label(frame_dados, text="PIN:").grid(row=2, column=0, sticky='w', padx=(0, 8), pady=(10, 0))
+        var_pin = StringVar(value="")
+        ttk.Entry(frame_dados, textvariable=var_pin, width=14, show='•').grid(row=2, column=1, sticky='w', pady=(10, 0))
+
+        lbl_preview = ttk.Label(container, text="Total: R$ 40,00", font=('Segoe UI', 12, 'bold'))
+        lbl_preview.pack(anchor='w', pady=(14, 0))
+
+        def atualizar_preview(*_):
+            qtd = self._parse_int(var_qtd.get(), default=0)
+            if qtd < 0:
+                qtd = 0
+            total = float(qtd) * 40.0
+            lbl_preview.config(text=f"Total: R$ {total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+
+        var_qtd.trace_add('write', atualizar_preview)
+        atualizar_preview()
+
+        frame_botoes = ttk.Frame(container)
+        frame_botoes.pack(fill='x', pady=(18, 0))
+
+        def registrar():
+            if int(var_confirmo.get()) != 1:
+                messagebox.showwarning("Confirmação", "Marque a confirmação do consultor antes de continuar.")
+                return
+
+            qtd = self._parse_int(var_qtd.get(), default=-1)
+            if qtd <= 0:
+                messagebox.showwarning("Atenção", "Informe uma quantidade de planos válida (mínimo 1).")
+                return
+
+            data_str = str(var_data.get()).strip()
+            try:
+                datetime.strptime(data_str, '%d/%m/%Y')
+            except Exception:
+                messagebox.showwarning("Atenção", "Data inválida. Use o formato dd/mm/aaaa.")
+                return
+
+            pin = str(var_pin.get()).strip()
+            if not pin:
+                messagebox.showwarning("Atenção", "Informe o PIN para confirmar.")
+                return
+
+            popup.destroy()
+
+            self.registrar_no_caixa(
+                0.0,
+                float(qtd) * 40.0,
+                qtd,
+                data_str,
+                tipo_fechamento='planos_avulsos',
+                descricao=f"Planos (sem PDF) — {qtd} x R$ 40,00",
+                validar_pin=True,
+                pin_informado=pin,
+            )
+
+        ttk.Button(frame_botoes, text="Cancelar", command=popup.destroy, style='secondary.TButton').pack(side='right')
+        ttk.Button(frame_botoes, text="Registrar", command=registrar, style='success.TButton').pack(side='right', padx=(0, 10))
 
     def _popup_confirmar_substituicao_fechamento(self, data_registro_str: str, registro_existente: dict, registro_novo: dict):
         """Popup moderno para lidar com duplicidade de fechamento.
@@ -519,11 +636,39 @@ class ComissaoView:
         ttk.Button(frame_btns, text="Cancelar", style="danger.Outline.TButton", command=cancelar, width=12).pack(side='left', padx=(0, 5))
         ttk.Button(frame_btns, text="✅ Confirmar", style="success.TButton", command=confirmar).pack(side='right', fill='x', expand=True, padx=(5, 0))
 
-    def registrar_no_caixa(self, valor_pdf, valor_planos, qtd_planos, data_registro_str, periodo_inicio_str=None, periodo_fim_str=None):
+    def registrar_no_caixa(
+        self,
+        valor_pdf,
+        valor_planos,
+        qtd_planos,
+        data_registro_str,
+        periodo_inicio_str=None,
+        periodo_fim_str=None,
+        tipo_fechamento=None,
+        descricao=None,
+        validar_pin=True,
+        pin_informado=None,
+    ):
         # 1. PIN
-        if not self.pin_verificado_nesta_sessao:
-            if not self._verificar_pin_consultor():
-                self.app.show_toast("Cancelado", "PIN incorreto.", bootstyle='warning'); return
+        if validar_pin and (not self.pin_verificado_nesta_sessao):
+            if pin_informado is not None:
+                self.dados_pins = fm.carregar_pins_consultores()
+                pin_atual = self.dados_pins.get(self.nome_consultor_logado, "0000")
+                if pin_atual == "0000":
+                    if not self._popup_criar_pin():
+                        self.app.show_toast("Cancelado", "PIN não configurado.", bootstyle='warning')
+                        return
+                    self.dados_pins = fm.carregar_pins_consultores()
+                    pin_atual = self.dados_pins.get(self.nome_consultor_logado, "0000")
+
+                if str(pin_informado).strip() != str(pin_atual).strip():
+                    self.app.show_toast("Cancelado", "PIN incorreto.", bootstyle='warning')
+                    return
+            else:
+                if not self._verificar_pin_consultor():
+                    self.app.show_toast("Cancelado", "PIN incorreto.", bootstyle='warning')
+                    return
+
             self.pin_verificado_nesta_sessao = True
         
         # 2. Salvar
@@ -532,22 +677,27 @@ class ComissaoView:
         dt_obj = datetime.strptime(data_registro_str, "%d/%m/%Y")
         mes_ano = dt_obj.strftime("%Y-%m")
 
+        tipo_final = tipo_fechamento
+        if not tipo_final:
+            tipo_final = "semanal" if (periodo_inicio_str and periodo_fim_str) else "diario"
+
         novo = {
             "data": data_registro_str,
             "comissao_produtos": valor_pdf,
             "comissao_planos": valor_planos,
             "qtd_planos": qtd_planos,
             "total_dia": valor_pdf + valor_planos,
-            "timestamp": str(agora)
+            "timestamp": str(agora),
+            "tipo_fechamento": tipo_final,
         }
+
+        if descricao:
+            novo["descricao"] = descricao
 
         if periodo_inicio_str and periodo_fim_str:
             novo["periodo_inicio"] = periodo_inicio_str
             novo["periodo_fim"] = periodo_fim_str
             novo["periodo"] = f"{periodo_inicio_str} a {periodo_fim_str}"
-            novo["tipo_fechamento"] = "semanal"
-        else:
-            novo["tipo_fechamento"] = "diario"
         
         if self.nome_consultor_logado not in self.dados_caixa_comissao:
             self.dados_caixa_comissao[self.nome_consultor_logado] = {}
@@ -556,10 +706,20 @@ class ComissaoView:
 
         # 2.1 Evita duplicidade na mesma data
         registros_mes = self.dados_caixa_comissao[self.nome_consultor_logado][mes_ano]
-        duplicados = [
-            rid for rid, r in registros_mes.items()
-            if isinstance(r, dict) and r.get('data') == data_registro_str
-        ]
+        duplicados = []
+        for rid, r in registros_mes.items():
+            if not isinstance(r, dict):
+                continue
+            if r.get('data') != data_registro_str:
+                continue
+
+            tipo_existente = r.get('tipo_fechamento', 'diario')
+            if tipo_final == 'planos_avulsos':
+                if tipo_existente == 'planos_avulsos':
+                    duplicados.append(rid)
+            else:
+                if tipo_existente != 'planos_avulsos':
+                    duplicados.append(rid)
         if duplicados:
             periodo_antigo = registros_mes[duplicados[0]].get('periodo')
             tipo_antigo = registros_mes[duplicados[0]].get('tipo_fechamento', 'diario')
@@ -722,7 +882,7 @@ class ComissaoView:
             vt = d.get('total_dia', 0)
             qtd_p = d.get('qtd_planos', 0)
             data_exibicao = d.get('periodo') or d.get('data', '')
-            descricao = "Fechamento Semanal" if d.get('tipo_fechamento') == 'semanal' or d.get('periodo') else "Fechamento Diário"
+            descricao = d.get('descricao') or ("Fechamento Semanal" if d.get('tipo_fechamento') == 'semanal' or d.get('periodo') else "Fechamento Diário")
 
             if tipo == "Apenas Comissões": vt = vp; vl = 0
             elif tipo == "Apenas Planos": vt = vl; vp = 0
