@@ -285,7 +285,8 @@ class ComissaoView:
 
         popup = Toplevel(self.app)
         popup.title("Registrar Planos do Dia")
-        self.app._center_popup(popup, 560, 360)
+        self.app._center_popup(popup, 560, 420)
+        popup.minsize(560, 420)
         popup.transient(self.app)
         popup.grab_set()
 
@@ -312,7 +313,7 @@ class ComissaoView:
         ttk.Entry(frame_dados, textvariable=var_data, width=14).grid(row=1, column=1, sticky='w')
 
         lbl_preview = ttk.Label(container, text="Total: R$ 40,00", font=('Segoe UI', 12, 'bold'))
-        lbl_preview.pack(anchor='w', pady=(14, 0))
+        lbl_preview.pack(anchor='w', pady=(14, 10))
 
         def atualizar_preview(*_):
             qtd = self._parse_int(var_qtd.get(), default=0)
@@ -324,8 +325,10 @@ class ComissaoView:
         var_qtd.trace_add('write', atualizar_preview)
         atualizar_preview()
 
+        ttk.Separator(container).pack(fill='x', pady=(6, 10))
+
         frame_botoes = ttk.Frame(container)
-        frame_botoes.pack(fill='x', pady=(18, 0))
+        frame_botoes.pack(side='bottom', fill='x', pady=(0, 0))
 
         def registrar():
             qtd = self._parse_int(var_qtd.get(), default=-1)
@@ -353,8 +356,8 @@ class ComissaoView:
                 pin_informado=None,
             )
 
-        ttk.Button(frame_botoes, text="Cancelar", command=popup.destroy, style='secondary.TButton').pack(side='right')
-        ttk.Button(frame_botoes, text="Registrar", command=registrar, style='success.TButton').pack(side='right', padx=(0, 10))
+        ttk.Button(frame_botoes, text="Cancelar", command=popup.destroy, style='secondary.TButton', width=14).pack(side='right')
+        ttk.Button(frame_botoes, text="Registrar", command=registrar, style='success.TButton', width=16).pack(side='right', padx=(0, 10))
 
     def _popup_confirmar_substituicao_fechamento(self, data_registro_str: str, registro_existente: dict, registro_novo: dict):
         """Popup moderno para lidar com duplicidade de fechamento.
