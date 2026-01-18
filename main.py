@@ -21,6 +21,7 @@ import platform
 import csv
 import traceback
 import multiprocessing as mp 
+import threading
 
 # --- CORREÇÃO DE PATH ---
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -357,6 +358,20 @@ class App(ttk.Window):
         for widget in self.main_frame.winfo_children(): widget.destroy()
         login_container = ttk.Frame(self.main_frame); login_container.pack(expand=True)
 
+        # Fato inútil do dia (API v2) - texto pequeno no topo
+        top_info = ttk.Frame(login_container)
+        top_info.pack(fill='x', pady=(0, 8))
+        self.lbl_fato_inutil_login = ttk.Label(
+            top_info,
+            text="Fato inútil do dia: carregando...",
+            style='secondary.TLabel',
+            font=("Segoe UI", 8),
+            wraplength=650,
+            justify='center'
+        )
+        self.lbl_fato_inutil_login.pack(anchor='center')
+        self._carregar_fato_inutil_async()
+
         if self.logo_login: ttk.Label(login_container, image=self.logo_login).pack(pady=(0, 25))
         else: ttk.Label(login_container, text="Sistema Veritas", font=self.FONT_TITLE_LOGIN).pack(pady=(0, 25))
 
@@ -405,6 +420,50 @@ class App(ttk.Window):
             self.nav_var.set("simulador"); self._last_selected_nav = "simulador"; self.show_view("simulador")
 
         ttk.Button(form_frame, text="Entrar", command=on_login, style='success.TButton', width=35, bootstyle="success-solid").pack(pady=10, ipady=5)
+
+    def _carregar_fato_inutil_async(self):
+        """Busca um fato inútil sem travar a UI (API: https://uselessfacts.jsph.pl/)."""
+        try:
+            lbl = getattr(self, 'lbl_fato_inutil_login', None)
+            if not lbl:
+                return
+
+            hoje_key = date.today().strftime("%Y-%m-%d")
+            cache = getattr(self, '_fato_inutil_cache', None)
+            if isinstance(cache, dict) and cache.get('dia') == hoje_key and cache.get('texto'):
+                lbl.config(text=cache['texto'])
+                return
+
+            def worker():
+                texto_final = "Fato inútil do dia: (sem conexão)"
+                try:
+                    url = "https://uselessfacts.jsph.pl/api/v2/facts/today?language=en"
+                    resp = requests.get(url, timeout=6, headers={'Accept': 'application/json'})
+                    resp.raise_for_status()
+                    data = resp.json() if resp.headers.get('Content-Type', '').startswith('application/json') else {}
+                    fact = (data or {}).get('text')
+                    if fact:
+                        fact = str(fact).strip()
+                        if len(fact) > 220:
+                            fact = fact[:217].rstrip() + "..."
+                        texto_final = f"Fato inútil do dia (EN): {fact}"
+                except Exception:
+                    pass
+
+                def apply():
+                    lbl2 = getattr(self, 'lbl_fato_inutil_login', None)
+                    if lbl2:
+                        lbl2.config(text=texto_final)
+                    self._fato_inutil_cache = {'dia': hoje_key, 'texto': texto_final}
+
+                try:
+                    self.after(0, apply)
+                except Exception:
+                    pass
+
+            threading.Thread(target=worker, daemon=True).start()
+        except Exception:
+            pass
 
     def _center_popup(self, popup, width, height):
         self.update_idletasks()
