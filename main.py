@@ -436,16 +436,17 @@ class App(ttk.Window):
             if not lbl:
                 return
 
-            hoje_key = date.today().strftime("%Y-%m-%d")
+            # Cache apenas por execução (evita múltiplas chamadas ao voltar para a tela de login)
             cache = getattr(self, '_fato_inutil_cache', None)
-            if isinstance(cache, dict) and cache.get('dia') == hoje_key and cache.get('texto'):
+            if isinstance(cache, dict) and cache.get('texto'):
                 lbl.config(text=cache['texto'])
                 return
 
             def worker():
-                texto_final = "Curiosidade do dia: (sem conexão)"
+                texto_final = "Curiosidade: (sem conexão)"
                 try:
-                    url = "https://uselessfacts.jsph.pl/api/v2/facts/today?language=en"
+                    # Fato aleatório (para trocar a cada abertura do sistema)
+                    url = "https://uselessfacts.jsph.pl/api/v2/facts/random?language=en"
                     resp = requests.get(url, timeout=6, headers={'Accept': 'application/json'})
                     resp.raise_for_status()
                     data = resp.json() if resp.headers.get('Content-Type', '').startswith('application/json') else {}
@@ -471,9 +472,9 @@ class App(ttk.Window):
                             traduzido = None
 
                         if traduzido:
-                            texto_final = f"Curiosidade do dia: {traduzido}"
+                            texto_final = f"Curiosidade: {traduzido}"
                         else:
-                            texto_final = f"Curiosidade do dia (EN): {fact}"
+                            texto_final = f"Curiosidade (EN): {fact}"
                 except Exception:
                     pass
 
@@ -481,7 +482,7 @@ class App(ttk.Window):
                     lbl2 = getattr(self, 'lbl_fato_inutil_login', None)
                     if lbl2:
                         lbl2.config(text=texto_final)
-                    self._fato_inutil_cache = {'dia': hoje_key, 'texto': texto_final}
+                    self._fato_inutil_cache = {'texto': texto_final}
 
                 try:
                     self.after(0, apply)
