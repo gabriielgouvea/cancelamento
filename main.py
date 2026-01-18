@@ -356,24 +356,29 @@ class App(ttk.Window):
     def show_login_view(self, force_dev_login=False):
         self.sidebar_frame.grid_remove()
         for widget in self.main_frame.winfo_children(): widget.destroy()
-        login_container = ttk.Frame(self.main_frame); login_container.pack(expand=True)
+        root_container = ttk.Frame(self.main_frame)
+        root_container.pack(fill='both', expand=True)
 
-        # Fato inútil do dia (API v2) - texto pequeno no topo
-        top_info = ttk.Frame(login_container)
-        top_info.pack(fill='x', pady=(0, 8))
+        # Fato inútil do dia (API v2) - topo fixo
+        top_info = ttk.Frame(root_container)
+        top_info.pack(side='top', fill='x', pady=(6, 0))
         self.lbl_fato_inutil_login = ttk.Label(
             top_info,
             text="Fato inútil do dia: carregando...",
             style='secondary.TLabel',
             font=("Segoe UI", 8),
-            wraplength=650,
+            wraplength=900,
             justify='center'
         )
         self.lbl_fato_inutil_login.pack(anchor='center')
         self._carregar_fato_inutil_async()
 
-        if self.logo_login: ttk.Label(login_container, image=self.logo_login).pack(pady=(0, 25))
-        else: ttk.Label(login_container, text="Sistema Veritas", font=self.FONT_TITLE_LOGIN).pack(pady=(0, 25))
+        # Conteúdo central do login
+        login_container = ttk.Frame(root_container)
+        login_container.pack(expand=True)
+
+        if self.logo_login: ttk.Label(login_container, image=self.logo_login).pack(pady=(10, 25))
+        else: ttk.Label(login_container, text="Sistema Veritas", font=self.FONT_TITLE_LOGIN).pack(pady=(10, 25))
 
         self.lista_completa_consultores = fm.carregar_consultores()
         self.nomes_consultores = [c['nome'] for c in self.lista_completa_consultores]
