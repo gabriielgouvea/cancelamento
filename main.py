@@ -454,7 +454,26 @@ class App(ttk.Window):
                         fact = str(fact).strip()
                         if len(fact) > 220:
                             fact = fact[:217].rstrip() + "..."
-                        texto_final = f"Curiosidade do dia: {fact}"
+                        # Tenta traduzir para PT-BR (API gratuita, best-effort)
+                        traduzido = None
+                        try:
+                            tr = requests.get(
+                                "https://api.mymemory.translated.net/get",
+                                params={"q": fact, "langpair": "en|pt-br"},
+                                timeout=4
+                            )
+                            tr.raise_for_status()
+                            trj = tr.json() if tr.headers.get('Content-Type', '').startswith('application/json') else {}
+                            traduzido = ((trj or {}).get('responseData') or {}).get('translatedText')
+                            if traduzido:
+                                traduzido = str(traduzido).strip()
+                        except Exception:
+                            traduzido = None
+
+                        if traduzido:
+                            texto_final = f"Curiosidade do dia: {traduzido}"
+                        else:
+                            texto_final = f"Curiosidade do dia (EN): {fact}"
                 except Exception:
                     pass
 
