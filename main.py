@@ -22,6 +22,7 @@ import csv
 import traceback
 import multiprocessing as mp 
 import threading
+import html
 
 # --- CORREÇÃO DE PATH ---
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -374,6 +375,7 @@ class App(ttk.Window):
             justify='center'
         )
         self.lbl_fato_inutil_login.pack(anchor='center')
+        self.lbl_fato_inutil_login.bind("<Button-1>", lambda e: self._refresh_fato_inutil())
         self._carregar_fato_inutil_async()
 
         # Conteúdo central do login
@@ -453,6 +455,7 @@ class App(ttk.Window):
                     fact = (data or {}).get('text')
                     if fact:
                         fact = str(fact).strip()
+                        fact = html.unescape(fact)
                         if len(fact) > 220:
                             fact = fact[:217].rstrip() + "..."
                         # Tenta traduzir para PT-BR (API gratuita, best-effort)
@@ -465,14 +468,24 @@ class App(ttk.Window):
                             )
                             tr.raise_for_status()
                             trj = tr.json() if tr.headers.get('Content-Type', '').startswith('application/json') else {}
-                            traduzido = ((trj or {}).get('responseData') or {}).get('translatedText')
+                            rd = (trj or {}).get('responseData') or {}
+                            traduzido = rd.get('translatedText')
+                            match = rd.get('match')
                             if traduzido:
-                                traduzido = str(traduzido).strip()
+                                traduzido = html.unescape(str(traduzido).strip())
+
+                            # Se a qualidade reportada for baixa, não usa tradução
+                            try:
+                                if match is not None and float(match) < 0.60:
+                                    traduzido = None
+                            except Exception:
+                                pass
                         except Exception:
                             traduzido = None
 
                         if traduzido:
-                            texto_final = f"Curiosidade: {traduzido}"
+                            # Mostra tradução + original (para evitar sensação de "tradução errada")
+                            texto_final = f"Curiosidade: {traduzido} (orig: {fact})"
                         else:
                             texto_final = f"Curiosidade (EN): {fact}"
                 except Exception:
@@ -490,6 +503,17 @@ class App(ttk.Window):
                     pass
 
             threading.Thread(target=worker, daemon=True).start()
+        except Exception:
+            pass
+
+    def _refresh_fato_inutil(self):
+        """Força atualizar a curiosidade (clique no texto do topo)."""
+        try:
+            self._fato_inutil_cache = None
+            lbl = getattr(self, 'lbl_fato_inutil_login', None)
+            if lbl:
+                lbl.config(text="Curiosidade: carregando...")
+            self._carregar_fato_inutil_async()
         except Exception:
             pass
 
