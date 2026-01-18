@@ -133,7 +133,6 @@ class App(ttk.Window):
         self.dinheiro_state = {"caixa_atual": "01", "caixas": {"01": {}, "02": {}}}
 
         # Cache do fato inútil (evita múltiplas chamadas no mesmo dia)
-        self._fato_inutil_cache = None
         self._piada_cache = None
 
         self.load_images()
@@ -367,17 +366,6 @@ class App(ttk.Window):
         # Fato inútil do dia (API v2) - topo fixo
         top_info = ttk.Frame(root_container)
         top_info.pack(side='top', fill='x', pady=(6, 0))
-        self.lbl_fato_inutil_login = ttk.Label(
-            top_info,
-            text="Curiosidade: carregando...",
-            style='secondary.TLabel',
-            font=("Segoe UI", 8),
-            wraplength=900,
-            justify='center'
-        )
-        self.lbl_fato_inutil_login.pack(anchor='center')
-        self.lbl_fato_inutil_login.bind("<Button-1>", lambda e: self._refresh_fato_inutil())
-
         self.lbl_piada_login = ttk.Label(
             top_info,
             text="Piada: carregando...",
@@ -388,8 +376,6 @@ class App(ttk.Window):
         )
         self.lbl_piada_login.pack(anchor='center', pady=(2, 0))
         self.lbl_piada_login.bind("<Button-1>", lambda e: self._refresh_piada())
-
-        self._carregar_fato_inutil_async()
         self._carregar_piada_async()
 
         # Conteúdo central do login
@@ -445,80 +431,6 @@ class App(ttk.Window):
 
         ttk.Button(form_frame, text="Entrar", command=on_login, style='success.TButton', width=35, bootstyle="success-solid").pack(pady=10, ipady=5)
 
-    def _carregar_fato_inutil_async(self):
-        """Busca um fato inútil sem travar a UI (API: https://uselessfacts.jsph.pl/)."""
-        try:
-            lbl = getattr(self, 'lbl_fato_inutil_login', None)
-            if not lbl:
-                return
-
-            # Cache apenas por execução (evita múltiplas chamadas ao voltar para a tela de login)
-            cache = getattr(self, '_fato_inutil_cache', None)
-            if isinstance(cache, dict) and cache.get('texto'):
-                lbl.config(text=cache['texto'])
-                return
-
-            def worker():
-                texto_final = "Curiosidade: (sem conexão)"
-                try:
-                    # Fato aleatório (para trocar a cada abertura do sistema)
-                    url = "https://uselessfacts.jsph.pl/api/v2/facts/random?language=en"
-                    resp = requests.get(url, timeout=6, headers={'Accept': 'application/json'})
-                    resp.raise_for_status()
-                    data = resp.json() if resp.headers.get('Content-Type', '').startswith('application/json') else {}
-                    fact = (data or {}).get('text')
-                    if fact:
-                        fact = str(fact).strip()
-                        fact = html.unescape(fact)
-                        if len(fact) > 220:
-                            fact = fact[:217].rstrip() + "..."
-                        # Tenta traduzir para PT-BR (API gratuita, best-effort)
-                        traduzido = None
-                        try:
-                            tr = requests.get(
-                                "https://api.mymemory.translated.net/get",
-                                params={"q": fact, "langpair": "en|pt-br"},
-                                timeout=4
-                            )
-                            tr.raise_for_status()
-                            trj = tr.json() if tr.headers.get('Content-Type', '').startswith('application/json') else {}
-                            rd = (trj or {}).get('responseData') or {}
-                            traduzido = rd.get('translatedText')
-                            match = rd.get('match')
-                            if traduzido:
-                                traduzido = html.unescape(str(traduzido).strip())
-
-                            # Se a qualidade reportada for baixa, não usa tradução
-                            try:
-                                if match is not None and float(match) < 0.60:
-                                    traduzido = None
-                            except Exception:
-                                pass
-                        except Exception:
-                            traduzido = None
-
-                        if traduzido:
-                            # Mostra tradução + original (para evitar sensação de "tradução errada")
-                            texto_final = f"Curiosidade: {traduzido} (orig: {fact})"
-                        else:
-                            texto_final = f"Curiosidade (EN): {fact}"
-                except Exception:
-                    pass
-
-                def apply():
-                    lbl2 = getattr(self, 'lbl_fato_inutil_login', None)
-                    if lbl2:
-                        lbl2.config(text=texto_final)
-                    self._fato_inutil_cache = {'texto': texto_final}
-
-                try:
-                    self.after(0, apply)
-                except Exception:
-                    pass
-
-            threading.Thread(target=worker, daemon=True).start()
-        except Exception:
-            pass
 
     def _carregar_piada_async(self):
         """Busca uma piada sem travar a UI (API: https://v2.jokeapi.dev/)."""
@@ -527,6 +439,8 @@ class App(ttk.Window):
             if not lbl:
                 return
 
+            # A cada abertura do sistema a piada será nova.
+            # O cache só serve para evitar chamadas repetidas durante a execução atual (ex.: clique/voltar para login).
             cache = getattr(self, '_piada_cache', None)
             if isinstance(cache, dict) and cache.get('texto'):
                 lbl.config(text=cache['texto'])
@@ -624,17 +538,6 @@ class App(ttk.Window):
                     pass
 
             threading.Thread(target=worker, daemon=True).start()
-        except Exception:
-            pass
-
-    def _refresh_fato_inutil(self):
-        """Força atualizar a curiosidade (clique no texto do topo)."""
-        try:
-            self._fato_inutil_cache = None
-            lbl = getattr(self, 'lbl_fato_inutil_login', None)
-            if lbl:
-                lbl.config(text="Curiosidade: carregando...")
-            self._carregar_fato_inutil_async()
         except Exception:
             pass
 
