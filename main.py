@@ -23,6 +23,7 @@ import traceback
 import multiprocessing as mp 
 import threading
 import html
+import random
 
 # --- CORREÇÃO DE PATH ---
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -134,6 +135,7 @@ class App(ttk.Window):
 
         # Cache do fato inútil (evita múltiplas chamadas no mesmo dia)
         self._piada_cache = None
+        self._ultima_piada_texto = self._carregar_ultima_piada_local()
 
         self.load_images()
         self.create_custom_styles()
@@ -439,15 +441,61 @@ class App(ttk.Window):
             if not lbl:
                 return
 
-            # A cada abertura do sistema a piada será nova.
-            # O cache só serve para evitar chamadas repetidas durante a execução atual (ex.: clique/voltar para login).
+            # Cache só para evitar chamadas repetidas durante a execução atual.
             cache = getattr(self, '_piada_cache', None)
             if isinstance(cache, dict) and cache.get('texto'):
                 lbl.config(text=cache['texto'])
                 return
 
+            # Fallback imediato: mostra uma piada offline diferente enquanto tenta buscar uma nova.
+            # (Evita ficar repetindo a mesma quando não há internet.)
+            ultima_para_excluir = (getattr(self, '_ultima_piada_texto', None) or '').strip() or None
+
+            def escolher_piada_offline(excluir: str | None) -> str:
+                piadas = [
+                    "Por que o computador foi ao médico? Porque estava com vírus.",
+                    "Qual é o café mais perigoso? O ex-presso.",
+                    "O que o zero disse pro oito? Belo cinto!",
+                    "Por que o livro foi ao hospital? Porque tinha muitas páginas em branco.",
+                    "O que a lâmpada disse para a outra? Você me ilumina.",
+                    "Por que o relógio foi expulso da escola? Porque vivia atrasado.",
+                    "O que a nuvem falou quando caiu? Chuva de emoção.",
+                    "Por que o teclado não conta segredo? Porque tem muitas teclas.",
+                    "O que o Wi‑Fi disse pro cabo? Você vive preso.",
+                    "Por que a bateria estava feliz? Porque tinha energia de sobra.",
+                    "Qual é o cúmulo da organização? Guardar a bagunça por ordem alfabética.",
+                    "O que o mouse disse? Cliquei, logo existo.",
+                    "Por que a impressora dormiu cedo? Para não dar pane amanhã.",
+                    "O que a senha falou? Não me esquece.",
+                    "Por que o programador levou uma escada? Para acessar níveis mais altos.",
+                    "O que o calendário disse? Meu dia está contado.",
+                    "Por que o celular tirou férias? Estava sem sinal.",
+                    "Qual é o animal mais conectado? O bug.",
+                    "O que o pendrive falou? Tô cheio de memória.",
+                    "Por que a internet foi ao psicólogo? Tinha muitos nós.",
+                ]
+
+                candidatos = [p for p in piadas if p and (excluir is None or p.strip() != excluir.strip())]
+                if not candidatos:
+                    candidatos = piadas
+                return random.choice(candidatos).strip()
+
+            piada_offline_sugerida = escolher_piada_offline(ultima_para_excluir)
+            try:
+                if piada_offline_sugerida:
+                    lbl.config(text=f"Piada: {piada_offline_sugerida}")
+            except Exception:
+                pass
+
             def worker():
                 texto_final = "Piada: (sem conexão)"
+                piada_raw = None
+
+                def truncar(s: str, max_len: int = 220) -> str:
+                    s = (s or "").strip()
+                    if len(s) <= max_len:
+                        return s
+                    return s[: max_len - 3].rstrip() + "..."
 
                 def parse_joke(j: dict) -> str | None:
                     if not isinstance(j, dict):
@@ -456,15 +504,16 @@ class App(ttk.Window):
                         return None
                     if j.get('type') == 'single':
                         return j.get('joke')
-                    setup = j.get('setup')
-                    delivery = j.get('delivery')
-                    if setup and delivery:
-                        return f"{setup} — {delivery}"
+                    if j.get('type') == 'twopart':
+                        setup = j.get('setup')
+                        delivery = j.get('delivery')
+                        if setup and delivery:
+                            return f"{setup} — {delivery}"
                     return None
 
-                try:
+                def fetch_joke(lang: str) -> str | None:
                     params = {
-                        'lang': 'pt',
+                        'lang': lang,
                         'safe-mode': '',
                         'blacklistFlags': 'nsfw,religious,political,racist,sexist,explicit'
                     }
@@ -472,65 +521,88 @@ class App(ttk.Window):
                     resp.raise_for_status()
                     data = resp.json() if resp.headers.get('Content-Type', '').startswith('application/json') else {}
                     piada = parse_joke(data)
-
-                    original_en = None
                     if not piada:
-                        # Fallback para EN e tenta traduzir
-                        params_en = {
-                            'lang': 'en',
-                            'safe-mode': '',
-                            'blacklistFlags': 'nsfw,religious,political,racist,sexist,explicit'
-                        }
-                        resp2 = requests.get("https://v2.jokeapi.dev/joke/Any", params=params_en, timeout=6)
-                        resp2.raise_for_status()
-                        data2 = resp2.json() if resp2.headers.get('Content-Type', '').startswith('application/json') else {}
-                        piada = parse_joke(data2)
-                        original_en = piada
+                        return None
+                    return html.unescape(str(piada).strip())
 
-                    if piada:
-                        piada = html.unescape(str(piada).strip())
-                        if len(piada) > 220:
-                            piada = piada[:217].rstrip() + "..."
+                def traduzir_en_para_pt(texto_en: str) -> str | None:
+                    try:
+                        tr = requests.get(
+                            "https://api.mymemory.translated.net/get",
+                            params={"q": texto_en, "langpair": "en|pt-br"},
+                            timeout=4
+                        )
+                        tr.raise_for_status()
+                        trj = tr.json() if tr.headers.get('Content-Type', '').startswith('application/json') else {}
+                        rd = (trj or {}).get('responseData') or {}
+                        traduzido = rd.get('translatedText')
+                        match = rd.get('match')
+                        if traduzido:
+                            traduzido = html.unescape(str(traduzido).strip())
+                        try:
+                            if match is not None and float(match) < 0.60:
+                                return None
+                        except Exception:
+                            pass
+                        return traduzido or None
+                    except Exception:
+                        return None
+
+                try:
+                    # Evita repetir exatamente a última piada entre aberturas do sistema
+                    ultima = (self._ultima_piada_texto or "").strip()
+
+                    for _ in range(4):
+                        piada = fetch_joke('pt')
+                        original_en = None
+
+                        if not piada:
+                            piada = fetch_joke('en')
+                            original_en = piada
+
+                        if not piada:
+                            continue
+
+                        if ultima and piada.strip() == ultima:
+                            continue
+
+                        piada_raw = piada.strip()
 
                         if original_en:
-                            traduzido = None
-                            try:
-                                tr = requests.get(
-                                    "https://api.mymemory.translated.net/get",
-                                    params={"q": original_en, "langpair": "en|pt-br"},
-                                    timeout=4
-                                )
-                                tr.raise_for_status()
-                                trj = tr.json() if tr.headers.get('Content-Type', '').startswith('application/json') else {}
-                                rd = (trj or {}).get('responseData') or {}
-                                traduzido = rd.get('translatedText')
-                                match = rd.get('match')
-                                if traduzido:
-                                    traduzido = html.unescape(str(traduzido).strip())
-                                try:
-                                    if match is not None and float(match) < 0.60:
-                                        traduzido = None
-                                except Exception:
-                                    pass
-                            except Exception:
-                                traduzido = None
-
+                            traduzido = traduzir_en_para_pt(original_en)
                             if traduzido:
-                                if len(traduzido) > 220:
-                                    traduzido = traduzido[:217].rstrip() + "..."
-                                texto_final = f"Piada: {traduzido} (orig: {piada})"
+                                texto_final = f"Piada: {truncar(traduzido)} (orig: {truncar(original_en)})"
                             else:
-                                texto_final = f"Piada (EN): {piada}"
+                                texto_final = f"Piada (EN): {truncar(original_en)}"
                         else:
-                            texto_final = f"Piada: {piada}"
+                            texto_final = f"Piada: {truncar(piada_raw)}"
+
+                        break
                 except Exception:
                     pass
+
+                if not piada_raw:
+                    try:
+                        # Sem internet: usa o fallback offline (diferente do último, quando possível)
+                        piada_raw = (piada_offline_sugerida or '').strip() or None
+                        if piada_raw:
+                            texto_final = f"Piada: {piada_raw}"
+                        else:
+                            texto_final = "Piada: sem conexão (clique para tentar novamente)"
+                    except Exception:
+                        texto_final = "Piada: sem conexão (clique para tentar novamente)"
 
                 def apply():
                     lbl2 = getattr(self, 'lbl_piada_login', None)
                     if lbl2:
                         lbl2.config(text=texto_final)
                     self._piada_cache = {'texto': texto_final}
+                    if piada_raw:
+                        try:
+                            self._ultima_piada_texto = piada_raw
+                            self._salvar_ultima_piada_local(piada_raw)
+                        except Exception:
+                            pass
 
                 try:
                     self.after(0, apply)
@@ -538,6 +610,38 @@ class App(ttk.Window):
                     pass
 
             threading.Thread(target=worker, daemon=True).start()
+        except Exception:
+            pass
+
+    def _ultima_piada_path(self):
+        try:
+            base = getattr(self, 'DATA_FOLDER_PATH', None) or DATA_FOLDER_PATH
+            return os.path.join(base, "ultima_piada.txt")
+        except Exception:
+            return os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "ultima_piada.txt")
+
+    def _carregar_ultima_piada_local(self):
+        try:
+            p = self._ultima_piada_path()
+            if os.path.exists(p):
+                with open(p, "r", encoding="utf-8") as f:
+                    txt = (f.read() or "").strip()
+                    # Compatibilidade com versões antigas que salvavam o texto completo ("Piada: ...")
+                    if txt.lower().startswith("piada:"):
+                        txt = txt.split(":", 1)[1].strip()
+                    if txt.lower().startswith("piada (en):"):
+                        txt = txt.split(":", 1)[1].strip()
+                    return txt or None
+        except Exception:
+            pass
+        return None
+
+    def _salvar_ultima_piada_local(self, texto: str):
+        try:
+            p = self._ultima_piada_path()
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8") as f:
+                f.write(str(texto).strip())
         except Exception:
             pass
 

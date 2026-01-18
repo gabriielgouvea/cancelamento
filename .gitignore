@@ -22,3 +22,6 @@ __pycache__/
 # Arquivos de IDE (como VS Code)
 .vscode/
 data/firebase-key.json
+
+# Cache local (runtime)
+data/ultima_piada.txt
