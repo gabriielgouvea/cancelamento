@@ -134,6 +134,7 @@ class App(ttk.Window):
 
         # Cache do fato inútil (evita múltiplas chamadas no mesmo dia)
         self._fato_inutil_cache = None
+        self._piada_cache = None
 
         self.load_images()
         self.create_custom_styles()
@@ -368,7 +369,7 @@ class App(ttk.Window):
         top_info.pack(side='top', fill='x', pady=(6, 0))
         self.lbl_fato_inutil_login = ttk.Label(
             top_info,
-            text="Fato inútil do dia: carregando...",
+            text="Curiosidade: carregando...",
             style='secondary.TLabel',
             font=("Segoe UI", 8),
             wraplength=900,
@@ -376,7 +377,20 @@ class App(ttk.Window):
         )
         self.lbl_fato_inutil_login.pack(anchor='center')
         self.lbl_fato_inutil_login.bind("<Button-1>", lambda e: self._refresh_fato_inutil())
+
+        self.lbl_piada_login = ttk.Label(
+            top_info,
+            text="Piada: carregando...",
+            style='secondary.TLabel',
+            font=("Segoe UI", 8),
+            wraplength=900,
+            justify='center'
+        )
+        self.lbl_piada_login.pack(anchor='center', pady=(2, 0))
+        self.lbl_piada_login.bind("<Button-1>", lambda e: self._refresh_piada())
+
         self._carregar_fato_inutil_async()
+        self._carregar_piada_async()
 
         # Conteúdo central do login
         login_container = ttk.Frame(root_container)
@@ -506,6 +520,113 @@ class App(ttk.Window):
         except Exception:
             pass
 
+    def _carregar_piada_async(self):
+        """Busca uma piada sem travar a UI (API: https://v2.jokeapi.dev/)."""
+        try:
+            lbl = getattr(self, 'lbl_piada_login', None)
+            if not lbl:
+                return
+
+            cache = getattr(self, '_piada_cache', None)
+            if isinstance(cache, dict) and cache.get('texto'):
+                lbl.config(text=cache['texto'])
+                return
+
+            def worker():
+                texto_final = "Piada: (sem conexão)"
+
+                def parse_joke(j: dict) -> str | None:
+                    if not isinstance(j, dict):
+                        return None
+                    if j.get('error') is True:
+                        return None
+                    if j.get('type') == 'single':
+                        return j.get('joke')
+                    setup = j.get('setup')
+                    delivery = j.get('delivery')
+                    if setup and delivery:
+                        return f"{setup} — {delivery}"
+                    return None
+
+                try:
+                    params = {
+                        'lang': 'pt',
+                        'safe-mode': '',
+                        'blacklistFlags': 'nsfw,religious,political,racist,sexist,explicit'
+                    }
+                    resp = requests.get("https://v2.jokeapi.dev/joke/Any", params=params, timeout=6)
+                    resp.raise_for_status()
+                    data = resp.json() if resp.headers.get('Content-Type', '').startswith('application/json') else {}
+                    piada = parse_joke(data)
+
+                    original_en = None
+                    if not piada:
+                        # Fallback para EN e tenta traduzir
+                        params_en = {
+                            'lang': 'en',
+                            'safe-mode': '',
+                            'blacklistFlags': 'nsfw,religious,political,racist,sexist,explicit'
+                        }
+                        resp2 = requests.get("https://v2.jokeapi.dev/joke/Any", params=params_en, timeout=6)
+                        resp2.raise_for_status()
+                        data2 = resp2.json() if resp2.headers.get('Content-Type', '').startswith('application/json') else {}
+                        piada = parse_joke(data2)
+                        original_en = piada
+
+                    if piada:
+                        piada = html.unescape(str(piada).strip())
+                        if len(piada) > 220:
+                            piada = piada[:217].rstrip() + "..."
+
+                        if original_en:
+                            traduzido = None
+                            try:
+                                tr = requests.get(
+                                    "https://api.mymemory.translated.net/get",
+                                    params={"q": original_en, "langpair": "en|pt-br"},
+                                    timeout=4
+                                )
+                                tr.raise_for_status()
+                                trj = tr.json() if tr.headers.get('Content-Type', '').startswith('application/json') else {}
+                                rd = (trj or {}).get('responseData') or {}
+                                traduzido = rd.get('translatedText')
+                                match = rd.get('match')
+                                if traduzido:
+                                    traduzido = html.unescape(str(traduzido).strip())
+                                try:
+                                    if match is not None and float(match) < 0.60:
+                                        traduzido = None
+                                except Exception:
+                                    pass
+                            except Exception:
+                                traduzido = None
+
+                            if traduzido:
+                                if len(traduzido) > 220:
+                                    traduzido = traduzido[:217].rstrip() + "..."
+                                texto_final = f"Piada: {traduzido} (orig: {piada})"
+                            else:
+                                texto_final = f"Piada (EN): {piada}"
+                        else:
+                            texto_final = f"Piada: {piada}"
+                except Exception:
+                    pass
+
+                def apply():
+                    lbl2 = getattr(self, 'lbl_piada_login', None)
+                    if lbl2:
+                        lbl2.config(text=texto_final)
+                    self._piada_cache = {'texto': texto_final}
+
+                try:
+                    self.after(0, apply)
+                except Exception:
+                    pass
+
+            threading.Thread(target=worker, daemon=True).start()
+        except Exception:
+            pass
+
     def _refresh_fato_inutil(self):
         """Força atualizar a curiosidade (clique no texto do topo)."""
         try:
@@ -514,6 +635,17 @@ class App(ttk.Window):
             if lbl:
                 lbl.config(text="Curiosidade: carregando...")
             self._carregar_fato_inutil_async()
+        except Exception:
+            pass
+
+    def _refresh_piada(self):
+        """Força atualizar a piada (clique no texto do topo)."""
+        try:
+            self._piada_cache = None
+            lbl = getattr(self, 'lbl_piada_login', None)
+            if lbl:
+                lbl.config(text="Piada: carregando...")
+            self._carregar_piada_async()
         except Exception:
             pass
 
