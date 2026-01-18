@@ -131,6 +131,9 @@ class App(ttk.Window):
         self.notinhas_state = {"tipo": "Crédito", "lancamentos": []}
         self.dinheiro_state = {"caixa_atual": "01", "caixas": {"01": {}, "02": {}}}
 
+        # Cache do fato inútil (evita múltiplas chamadas no mesmo dia)
+        self._fato_inutil_cache = None
+
         self.load_images()
         self.create_custom_styles()
 
@@ -440,7 +443,7 @@ class App(ttk.Window):
                 return
 
             def worker():
-                texto_final = "Fato inútil do dia: (sem conexão)"
+                texto_final = "Curiosidade do dia: (sem conexão)"
                 try:
                     url = "https://uselessfacts.jsph.pl/api/v2/facts/today?language=en"
                     resp = requests.get(url, timeout=6, headers={'Accept': 'application/json'})
@@ -451,7 +454,7 @@ class App(ttk.Window):
                         fact = str(fact).strip()
                         if len(fact) > 220:
                             fact = fact[:217].rstrip() + "..."
-                        texto_final = f"Fato inútil do dia (EN): {fact}"
+                        texto_final = f"Curiosidade do dia: {fact}"
                 except Exception:
                     pass
 
