@@ -14,6 +14,7 @@ from tkinter import messagebox, Toplevel, StringVar, scrolledtext
 from tkinter import ttk as standard_ttk 
 from datetime import date
 import requests
+import random
 
 # --- Importa as funções de utilidade ---
 from app_utils import (
@@ -164,6 +165,170 @@ class SimuladorView:
         # Espera o usuário responder
         self.app.wait_window(popup)
 
+    def _popup_data_invalida_inauguracao(self, data_inicio):
+        """Popup moderno para data anterior à inauguração (out/2024), sem depender de API."""
+        popup = Toplevel(self.app)
+        # Remove barra de título (sem X) e força fechamento pelo botão
+        self.app._center_popup(popup, 640, 310)
+        popup.overrideredirect(True)
+
+        container = ttk.Frame(popup, padding=18, relief='solid', borderwidth=1)
+        container.pack(fill='both', expand=True)
+
+        # Cabeçalho para arrastar o popup
+        header = ttk.Frame(container)
+        header.pack(fill='x', pady=(0, 8))
+        header_lbl = ttk.Label(header, text="Data impossível", style='secondary.TLabel', font=("Segoe UI", 9))
+        header_lbl.pack(anchor='w')
+
+        drag_state = {'x': 0, 'y': 0}
+
+        def _start_drag(evt):
+            drag_state['x'] = evt.x_root
+            drag_state['y'] = evt.y_root
+
+        def _on_drag(evt):
+            try:
+                dx = evt.x_root - drag_state['x']
+                dy = evt.y_root - drag_state['y']
+                x = popup.winfo_x() + dx
+                y = popup.winfo_y() + dy
+                popup.geometry(f"+{x}+{y}")
+                drag_state['x'] = evt.x_root
+                drag_state['y'] = evt.y_root
+            except Exception:
+                pass
+
+        header.bind('<ButtonPress-1>', _start_drag)
+        header.bind('<B1-Motion>', _on_drag)
+        header_lbl.bind('<ButtonPress-1>', _start_drag)
+        header_lbl.bind('<B1-Motion>', _on_drag)
+
+        area = ttk.Frame(container)
+        area.pack(fill='both', expand=True)
+
+        left = ttk.Frame(area)
+        left.pack(side='left', fill='y', padx=(0, 18))
+
+        right = ttk.Frame(area)
+        right.pack(side='left', fill='both', expand=True)
+
+        ttk.Label(
+            right,
+            text="Ops… essa data não tem como",
+            font=self.app.FONT_BOLD,
+            style='danger.TLabel'
+        ).pack(anchor='w')
+
+        msg = (
+            f"A academia inaugurou em outubro de 2024.\n"
+            f"Então um contrato começando em {data_inicio.strftime('%d/%m/%Y')} é impossível.\n\n"
+            f"Digite outubro de 2024 (ou qualquer data a partir daí)."
+        )
+
+        ttk.Label(
+            right,
+            text=msg,
+            font=self.app.FONT_MAIN,
+            wraplength=430,
+            justify='left'
+        ).pack(anchor='w', pady=(10, 0))
+
+        # Mascote animado (tipo GIF), desenhado localmente e rodando sozinho
+        img_label = ttk.Label(left)
+        img_label.pack(pady=(6, 4))
+
+        try:
+            from PIL import Image, ImageDraw, ImageTk
+
+            def desenhar_frame(idx: int):
+                img = Image.new('RGBA', (112, 112), (0, 0, 0, 0))
+                d = ImageDraw.Draw(img)
+
+                # Paleta "nervosa"
+                face = (235, 90, 90, 255)
+                outline = (120, 30, 30, 255)
+                white = (255, 255, 255, 255)
+                black = (25, 25, 25, 255)
+
+                # Pequena tremida
+                shake = [-2, -1, 0, 1, 2, 1][idx % 6]
+
+                # Cabeça
+                d.ellipse((6 + shake, 6, 106 + shake, 106), fill=face, outline=outline, width=4)
+
+                # Olhos
+                d.ellipse((30 + shake, 46, 50 + shake, 66), fill=white, outline=outline, width=2)
+                d.ellipse((62 + shake, 46, 82 + shake, 66), fill=white, outline=outline, width=2)
+                d.ellipse((38 + shake, 54, 44 + shake, 60), fill=black)
+                d.ellipse((70 + shake, 54, 76 + shake, 60), fill=black)
+
+                # Sobrancelha brava (mudando um pouco)
+                brow = [0, 1, 2, 1, 0, -1][idx % 6]
+                d.line((28 + shake, 42 + brow, 52 + shake, 48 + brow), fill=outline, width=5)
+                d.line((84 + shake, 42 + brow, 60 + shake, 48 + brow), fill=outline, width=5)
+
+                # Boca emburrada
+                d.arc((36 + shake, 74, 76 + shake, 104), start=210, end=330, fill=outline, width=4)
+
+                # "Vapor" saindo (alternando lado)
+                steam_dx = [0, 2, 4, 2, 0, -2][idx % 6]
+                d.arc((12 + steam_dx, 12, 40 + steam_dx, 40), start=240, end=40, fill=outline, width=3)
+                d.arc((78 - steam_dx, 12, 106 - steam_dx, 40), start=140, end=300, fill=outline, width=3)
+
+                return ImageTk.PhotoImage(img)
+
+            self._mascote_inaug_anim = [desenhar_frame(i) for i in range(6)]
+            self._mascote_inaug_anim_idx = 0
+
+            def tick():
+                try:
+                    if not popup.winfo_exists():
+                        return
+                    img_label.config(image=self._mascote_inaug_anim[self._mascote_inaug_anim_idx])
+                    self._mascote_inaug_anim_idx = (self._mascote_inaug_anim_idx + 1) % len(self._mascote_inaug_anim)
+                    popup.after(180, tick)
+                except Exception:
+                    pass
+
+            tick()
+        except Exception:
+            img_label.config(text="(mascote nervoso)")
+
+        ttk.Separator(container).pack(fill='x', pady=12)
+        frame_btn = ttk.Frame(container)
+        frame_btn.pack(fill='x')
+
+        def focar_data():
+            try:
+                self.entry_data_inicio.focus_set()
+                self.entry_data_inicio.selection_range(0, 'end')
+            except Exception:
+                pass
+
+        def ok():
+            popup.destroy()
+            focar_data()
+
+        btn_ok = ttk.Button(
+            frame_btn,
+            text="Beleza, vou corrigir a merda que eu fiz",
+            command=ok,
+            style='success.TButton',
+            width=38
+        )
+        btn_ok.pack(pady=(4, 0), ipady=10)
+        btn_ok.focus_set()
+
+        # Não permite fechar por teclas/"X" (não existe X por overrideredirect)
+        popup.protocol("WM_DELETE_WINDOW", lambda: None)
+        popup.bind("<Escape>", lambda e: None)
+        popup.bind("<Alt-F4>", lambda e: None)
+        popup.bind("<Return>", lambda e: ok())
+        popup.transient(self.app)
+        popup.grab_set()
+        self.app.wait_window(popup)
+
     def do_calculation(self):
         """Função de cálculo (ATUALIZADA)."""
         data_inicio_str = self.entry_data_inicio.get()
@@ -242,7 +407,11 @@ class SimuladorView:
                     widget.destroy()
 
             if 'erro_data' in self.calculo_resultado:
-                messagebox.showerror("Data Inválida", self.calculo_resultado['erro_data'])
+                erro = str(self.calculo_resultado.get('erro_data', ''))
+                if 'outubro de 2024' in erro.lower():
+                    self._popup_data_invalida_inauguracao(data_inicio)
+                else:
+                    messagebox.showerror("Data Inválida", erro)
                 ttk.Label(self.frame_resultado, text="O resultado aparecerá aqui...", font=self.app.FONT_MAIN, style="secondary.TLabel").pack(expand=True)
                 self.frame_whatsapp.pack_forget()
                 return
