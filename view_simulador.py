@@ -561,7 +561,27 @@ class SimuladorView:
             texto_parcela_formatado = self.calculo_resultado['linha_mensalidade_a_vencer']
             linha_proxima_parcela = (f"- Próxima parcela: {texto_parcela_formatado}\n")
             
-        texto_formatado = (f"*INFORMAÇÕES CANCELAMENTO*\n\n- Nome: {nome_cliente}\n- Matricula: {matricula}\n\n*💸 VALORES*\n- Parcelas vencidas: R$ {self.calculo_resultado['valor_atrasado']:.2f} ({self.calculo_resultado['parcelas_atrasadas_qtd']} Parcelas)\n{linha_proxima_parcela}- Valor da multa: R$ {self.calculo_resultado['valor_multa']:.2f} (10% de {self.calculo_resultado['meses_para_multa']} Meses)\n> TOTAL A SER PAGO: *R$ {self.calculo_resultado['total_a_pagar']:.2f}*\n\nApós o cancelamento, *seu acesso permanecerá ativo até*: {self.calculo_resultado['data_acesso_final'].strftime('%d/%m/%Y')}")
+        alerta = (
+            "\n\n⚠️ *ATENÇÃO*\n"
+            "Isso aqui é só uma *simulação* pra você entender os valores e as datas.\n"
+            "Essa mensagem *não confirma* o cancelamento, combinado?\n\n"
+            "Pra cancelar de verdade, precisa:\n"
+            "1) Solicitar e preencher o formulário de cancelamento\n"
+            "2) Efetuar o pagamento da multa/valores (quando houver)\n"
+        )
+
+        texto_formatado = (
+            f"*INFORMAÇÕES CANCELAMENTO*\n\n"
+            f"- Nome: {nome_cliente}\n"
+            f"- Matricula: {matricula}\n\n"
+            f"*💸 VALORES*\n"
+            f"- Parcelas vencidas: R$ {self.calculo_resultado['valor_atrasado']:.2f} ({self.calculo_resultado['parcelas_atrasadas_qtd']} Parcelas)\n"
+            f"{linha_proxima_parcela}"
+            f"- Valor da multa: R$ {self.calculo_resultado['valor_multa']:.2f} (10% de {self.calculo_resultado['meses_para_multa']} Meses)\n"
+            f"> TOTAL A SER PAGO: *R$ {self.calculo_resultado['total_a_pagar']:.2f}*\n\n"
+            f"Após o cancelamento, *seu acesso permanecerá ativo até*: {self.calculo_resultado['data_acesso_final'].strftime('%d/%m/%Y')}"
+            f"{alerta}"
+        )
         
         self.app.clipboard_clear()
         self.app.clipboard_append(texto_formatado)
