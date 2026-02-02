@@ -59,8 +59,8 @@ from app_utils import formatar_data
 import shutil
 
 # --- Variáveis Globais e Constantes ---
-APP_VERSION = "5.0.5"
-VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/veritas/main/version.json"
+APP_VERSION = "5.0.6"
+VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/cancelamento/main/version.json"
 RESOURCE_DATA_FOLDER_PATH = paths.get_resource_path("data")
 USER_DATA_FOLDER_PATH = paths.get_user_data_dir()
 DATA_FOLDER_PATH = USER_DATA_FOLDER_PATH
@@ -72,8 +72,20 @@ LOGO_MARCA_SIZE = (150, 150)
 def check_for_updates():
     try:
         response = requests.get(VERSION_URL, timeout=10); response.raise_for_status()
-        online_data = response.json(); online_version = online_data["version"]; download_url = online_data["download_url"]
-        if online_version > APP_VERSION:
+
+        online_data = response.json(); online_version = str(online_data["version"]); download_url = str(online_data["download_url"])
+
+        def _parse_version(v: str):
+            parts = [p for p in (v or "").strip().split('.') if p != ""]
+            nums = []
+            for p in parts:
+                try:
+                    nums.append(int(p))
+                except ValueError:
+                    nums.append(0)
+            return tuple(nums)
+
+        if _parse_version(online_version) > _parse_version(APP_VERSION):
             msg = f"Uma nova versão ({online_version}) está disponível!\n\nA sua versão atual é {APP_VERSION}.\n\nDeseja ir para a página de download?"
             if messagebox.askyesno("Atualização Disponível", msg): webbrowser.open(download_url)
         else: messagebox.showinfo("Verificar Atualizações", "Você já está com a versão mais recente do programa.")

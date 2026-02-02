@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Sistema Veritas"
-#define MyAppVersion "5.0.5"
+#define MyAppVersion "5.0.6"
 #define MyAppPublisher "Gabriel Gouvea"
 #define MyAppURL "https://www.example.com/"
 #define MyAppExeName "Veritas.exe"
@@ -32,7 +32,7 @@ DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
 OutputDir=C:\inno
-OutputBaseFilename=Setup_Veritas_v5.0.5
+OutputBaseFilename=Setup_Veritas_v5.0.6
 SetupIconFile=C:\cancelamento\renuncia.ico
 Password=ironberg@2024
 Encryption=yes
