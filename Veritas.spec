@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
+from PyInstaller.building.datastruct import Tree
 
 a = Analysis(
     ['main.py'], 
@@ -9,12 +10,14 @@ a = Analysis(
     # Empacota assets (ícones/imagens) e JSONs de base.
     # ATENÇÃO: não empacotar credenciais (data/firebase-key.json).
     datas=[
-        ('data\\*.png', 'data'),
-        ('data\\*.jpg', 'data'),
-        ('data\\*.jpeg', 'data'),
-        ('data\\*.ico', 'data'),
-        ('data\\consultores.json', 'data'),
-        ('data\\folgas.json', 'data'),
+        Tree(
+            'data',
+            prefix='data',
+            excludes=[
+                'firebase-key.json',
+                'ultima_piada.txt',
+            ],
+        ),
     ],
     hiddenimports=[
         'ttkbootstrap',

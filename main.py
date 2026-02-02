@@ -25,8 +25,15 @@ import threading
 import html
 import random
 
-# --- CORREÇÃO DE PATH ---
-SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+# --- CORREÇÃO DE PATH (DEV x EXECUTÁVEL) ---
+def _get_app_base_dir() -> str:
+    # No executável (PyInstaller), assets ficam ao lado do .exe
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.realpath(__file__))
+
+
+SCRIPT_PATH = _get_app_base_dir()
 sys.path.append(SCRIPT_PATH)
 
 try:
@@ -86,11 +93,14 @@ class App(ttk.Window):
             try:
                 offline = getattr(fm, 'is_offline_mode', lambda: True)()
                 if offline:
+                    detalhe = (getattr(fm, 'get_last_init_error', lambda: None)() or '').strip()
+                    detalhe_msg = f"\n\n{detalhe}" if detalhe else ""
                     msg = (
                         "Não foi possível conectar ao Firebase (chave ausente/erro de conexão).\n\n"
                         "Deseja iniciar em MODO OFFLINE (sem nuvem)?\n\n"
                         "- Login e Folgas usam arquivos locais em 'data/'\n"
                         "- Recursos que dependem da nuvem podem ficar indisponíveis"
+                        f"{detalhe_msg}"
                     )
                     if not messagebox.askyesno("Firebase indisponível", msg):
                         self.destroy()

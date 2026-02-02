@@ -10,9 +10,11 @@ import firebase_admin
 from firebase_admin import credentials, db 
 from tkinter import messagebox
 import os
+import sys
 import traceback # <-- Importado para mostrar o erro completo
 import io
 import json
+import tempfile
 from PIL import Image
 
 # --- IMPORTAÇÃO CORRETA ---
@@ -24,12 +26,23 @@ db_ref = None # Para o Realtime Database
 imagekit = None # Para o ImageKit
 FIREBASE_CONECTADO = False
 OFFLINE_MODE = False
+LAST_INIT_ERROR = None
 
-SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
-DEFAULT_KEY_FILE_PATH = os.path.join(SCRIPT_PATH, "data", "firebase-key.json")
-TEMP_UPLOAD_PATH = os.path.join(SCRIPT_PATH, "temp_upload.jpg") # Caminho do arquivo temporário
+def _get_app_base_dir() -> str:
+    """Retorna a pasta base do app.
 
-DATA_FOLDER_PATH = os.path.join(SCRIPT_PATH, "data")
+    - Em dev: pasta do arquivo .py
+    - No executável (PyInstaller): pasta do .exe
+    """
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.realpath(__file__))
+
+
+APP_BASE_DIR = _get_app_base_dir()
+DATA_FOLDER_PATH = os.path.join(APP_BASE_DIR, "data")
+DEFAULT_KEY_FILE_PATH = os.path.join(DATA_FOLDER_PATH, "firebase-key.json")
+TEMP_UPLOAD_PATH = os.path.join(tempfile.gettempdir(), "veritas_temp_upload.jpg")
 
 
 def _local_json_read(filename, default_value):
@@ -66,7 +79,7 @@ IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/2ewjhonqc"
 
 def init_firebase():
     """Conecta-se ao Realtime Database E ao ImageKit."""
-    global db_ref, imagekit, FIREBASE_CONECTADO, OFFLINE_MODE
+    global db_ref, imagekit, FIREBASE_CONECTADO, OFFLINE_MODE, LAST_INIT_ERROR
     
     if FIREBASE_CONECTADO:
         return True
@@ -100,6 +113,7 @@ def init_firebase():
         
         print("Conexão com Firebase (RTDB) e ImageKit estabelecida com sucesso!")
         FIREBASE_CONECTADO = True
+        LAST_INIT_ERROR = None
         return True
         
     except ValueError:
@@ -109,6 +123,12 @@ def init_firebase():
         FIREBASE_CONECTADO = True
         return True
     except FileNotFoundError:
+        LAST_INIT_ERROR = (
+            "Arquivo de credencial do Firebase não encontrado.\n\n"
+            f"Caminho tentado:\n{key_file_path}\n\n"
+            "Dica: coloque o arquivo em 'data/firebase-key.json' ao lado do executável\n"
+            "ou defina a variável de ambiente FIREBASE_KEY_PATH."
+        )
         # --- ***** CORREÇÃO ***** ---
         # MUDADO DE MESSAGEBOX PARA PRINT
         print("="*50)
@@ -120,6 +140,10 @@ def init_firebase():
         # --- ***** FIM DA CORREÇÃO ***** ---
         return False
     except Exception as e:
+        LAST_INIT_ERROR = (
+            "Não foi possível conectar ao Firebase.\n\n"
+            f"Detalhe: {e}"
+        )
         # --- ***** CORREÇÃO ***** ---
         # MUDADO DE MESSAGEBOX PARA PRINT
         print("="*50)
@@ -130,6 +154,10 @@ def init_firebase():
         # --- ***** FIM DA CORREÇÃO ***** ---
         OFFLINE_MODE = True
         return False
+
+
+def get_last_init_error():
+    return LAST_INIT_ERROR
 
 
 def is_offline_mode():
