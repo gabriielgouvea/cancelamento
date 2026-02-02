@@ -90,12 +90,22 @@ def init_firebase():
         OFFLINE_MODE = True
         return False
 
-    # Ordem: variável de ambiente > pasta do usuário > (fallback) pasta ao lado do exe
-    key_file_path = os.getenv('FIREBASE_KEY_PATH') or DEFAULT_KEY_FILE_PATH
-    if not os.path.exists(key_file_path):
-        exe_fallback = os.path.join(APP_BASE_DIR, 'data', 'firebase-key.json')
-        if os.path.exists(exe_fallback):
-            key_file_path = exe_fallback
+    # Ordem: variável de ambiente > pasta do usuário > recurso empacotado (sys._MEIPASS) > pasta ao lado do exe
+    key_file_path = os.getenv('FIREBASE_KEY_PATH')
+    
+    if not key_file_path or not os.path.exists(key_file_path):
+        # Tenta resolver via paths (AppData ou _internal/sys._MEIPASS)
+        candidate = paths.resolve_data_file("firebase-key.json")
+        if os.path.exists(candidate):
+            key_file_path = candidate
+        else:
+            # Fallback final: tenta data/ ao lado do executável (caso usuário tenha copiado lá)
+            exe_fallback = os.path.join(APP_BASE_DIR, 'data', 'firebase-key.json')
+            if os.path.exists(exe_fallback):
+                key_file_path = exe_fallback
+            else:
+                # Se não achou em lugar nenhum, define como o candidate (AppData ou Resource) para mostrar no erro
+                key_file_path = candidate
 
     try:
         # 1. Conecta ao Firebase (RTDB)
@@ -128,22 +138,27 @@ def init_firebase():
         FIREBASE_CONECTADO = True
         return True
     except FileNotFoundError:
+        fallback_path = os.path.join(APP_BASE_DIR, 'data', 'firebase-key.json')
+        locais_pesquisados = (
+            f"1. {key_file_path} (TENTADO)\n"
+            f"2. {fallback_path} (FALLBACK)"
+        )
+        
         LAST_INIT_ERROR = (
             "Arquivo de credencial do Firebase não encontrado.\n\n"
-            f"Caminho tentado:\n{key_file_path}\n\n"
-            "Dica: coloque o arquivo em '%APPDATA%\\Veritas\\data\\firebase-key.json'\n"
-            "(recomendado) ou em 'data/firebase-key.json' ao lado do executável\n"
-            "ou defina a variável de ambiente FIREBASE_KEY_PATH."
+            f"O sistema procurou nos seguintes locais:\n{locais_pesquisados}\n\n"
+            "AÇÃO NECESSÁRIA:\n"
+            "Copie o arquivo 'firebase-key.json' para:\n"
+            f"-> {DEFAULT_KEY_FILE_PATH}\n"
+            "(Pasta de dados do usuário)"
         )
-        # --- ***** CORREÇÃO ***** ---
-        # MUDADO DE MESSAGEBOX PARA PRINT
+        
         print("="*50)
         print("ERRO CRÍTICO DE FIREBASE")
-        print(f"O arquivo-chave do Firebase não foi encontrado em:\n{key_file_path}")
-        print("O aplicativo não pode se conectar à nuvem.")
+        print("Arquivo de credencial não encontrado.")
+        print(f"Locais verificados:\n{locais_pesquisados}")
         print("="*50)
         OFFLINE_MODE = True
-        # --- ***** FIM DA CORREÇÃO ***** ---
         return False
     except Exception as e:
         LAST_INIT_ERROR = (

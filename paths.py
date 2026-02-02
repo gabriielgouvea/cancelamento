@@ -6,7 +6,7 @@ Helpers de caminho para rodar em DEV e no executável (PyInstaller).
 
 - Recursos empacotados (imagens/ícones) devem ser lidos de `sys._MEIPASS` quando frozen.
 - Dados mutáveis (JSONs offline, cache, etc.) devem ir para uma pasta do usuário
-  (Windows: %APPDATA%\Veritas\data) para evitar problemas de permissão.
+  (Windows: %APPDATA%\\Veritas\\data) para evitar problemas de permissão.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def get_user_data_dir(app_name: str = "Veritas") -> str:
 def resolve_data_file(filename: str, *, app_name: str = "Veritas") -> str:
     """Resolve um arquivo de data preferindo a pasta do usuário.
 
-    - Se existir em %APPDATA%\Veritas\data, usa.
+    - Se existir em %APPDATA%\\Veritas\\data, usa.
     - Caso contrário, usa o empacotado em resources/data.
     """
     user_path = os.path.join(get_user_data_dir(app_name), filename)

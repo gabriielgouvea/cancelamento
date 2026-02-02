@@ -53,14 +53,11 @@ a = Analysis(
     optimize=0,
 )
 
-# Inclui a pasta data inteira no build (recursivo), mas exclui credenciais e cache runtime.
+# Inclui a pasta data inteira no build (recursivo).
 a.datas += Tree(
     DATA_DIR,
     prefix='data',
-    excludes=[
-        'firebase-key.json',
-        'ultima_piada.txt',
-    ],
+    excludes=[],
 )
 pyz = PYZ(a.pure)
 
