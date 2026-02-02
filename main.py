@@ -25,15 +25,10 @@ import threading
 import html
 import random
 
-# --- CORREÇÃO DE PATH (DEV x EXECUTÁVEL) ---
-def _get_app_base_dir() -> str:
-    # No executável (PyInstaller), assets ficam ao lado do .exe
-    if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.realpath(__file__))
+import paths
 
-
-SCRIPT_PATH = _get_app_base_dir()
+# --- PATHS (DEV x EXECUTÁVEL) ---
+SCRIPT_PATH = paths.get_exe_dir()
 sys.path.append(SCRIPT_PATH)
 
 try:
@@ -66,7 +61,9 @@ import shutil
 # --- Variáveis Globais e Constantes ---
 APP_VERSION = "5.0.5"
 VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/veritas/main/version.json"
-DATA_FOLDER_PATH = os.path.join(SCRIPT_PATH, "data") 
+RESOURCE_DATA_FOLDER_PATH = paths.get_resource_path("data")
+USER_DATA_FOLDER_PATH = paths.get_user_data_dir()
+DATA_FOLDER_PATH = USER_DATA_FOLDER_PATH
 PROFILE_PIC_SIZE = (96, 96)
 ICON_SIZE = (22, 22)
 LOGO_MARCA_SIZE = (150, 150)
@@ -133,6 +130,7 @@ class App(ttk.Window):
         self.PROFILE_PIC_SIZE = PROFILE_PIC_SIZE
         self.LOGO_MARCA_SIZE = LOGO_MARCA_SIZE 
         self.DATA_FOLDER_PATH = DATA_FOLDER_PATH
+        self.RESOURCE_DATA_FOLDER_PATH = RESOURCE_DATA_FOLDER_PATH
 
         self.lista_completa_consultores = fm.carregar_consultores()
         self.nomes_consultores = [c['nome'] for c in self.lista_completa_consultores]
@@ -183,16 +181,19 @@ class App(ttk.Window):
         self.default_icon = ImageTk.PhotoImage(Image.new('RGBA', ICON_SIZE, (0,0,0,0)))
         self.profile_photo = self.default_profile_photo
 
+        def _data_file(filename: str) -> str:
+            return paths.resolve_data_file(filename)
+
         try:
-            self.icon_simulador = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "calculator.png")).resize(ICON_SIZE))
-            self.icon_comissao = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "commission.png")).resize(ICON_SIZE))
-            self.icon_folgas = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "days_off.png")).resize(ICON_SIZE))
-            self.icon_updates = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "updates.png")).resize(ICON_SIZE))
-            self.icon_developer = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "developer.png")).resize(ICON_SIZE))
-            self.icon_liberacoes = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "entries.png")).resize(ICON_SIZE))
-            self.icon_lostfound = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "lost_found.png")).resize(ICON_SIZE))
-            self.icon_notinhas = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "notinhas.png")).resize(ICON_SIZE))
-            self.icon_dinheiro = ImageTk.PhotoImage(Image.open(os.path.join(DATA_FOLDER_PATH, "money.png")).resize(ICON_SIZE))
+            self.icon_simulador = ImageTk.PhotoImage(Image.open(_data_file("calculator.png")).resize(ICON_SIZE))
+            self.icon_comissao = ImageTk.PhotoImage(Image.open(_data_file("commission.png")).resize(ICON_SIZE))
+            self.icon_folgas = ImageTk.PhotoImage(Image.open(_data_file("days_off.png")).resize(ICON_SIZE))
+            self.icon_updates = ImageTk.PhotoImage(Image.open(_data_file("updates.png")).resize(ICON_SIZE))
+            self.icon_developer = ImageTk.PhotoImage(Image.open(_data_file("developer.png")).resize(ICON_SIZE))
+            self.icon_liberacoes = ImageTk.PhotoImage(Image.open(_data_file("entries.png")).resize(ICON_SIZE))
+            self.icon_lostfound = ImageTk.PhotoImage(Image.open(_data_file("lost_found.png")).resize(ICON_SIZE))
+            self.icon_notinhas = ImageTk.PhotoImage(Image.open(_data_file("notinhas.png")).resize(ICON_SIZE))
+            self.icon_dinheiro = ImageTk.PhotoImage(Image.open(_data_file("money.png")).resize(ICON_SIZE))
         except Exception as e:
             messagebox.showerror("Erro ao Carregar Ícones", f"Não foi possível carregar alguns ícones da pasta 'data'.\n\nErro: {e}")
             self.icon_simulador = self.icon_comissao = self.icon_folgas = self.default_icon
@@ -202,7 +203,7 @@ class App(ttk.Window):
             self.icon_dinheiro = self.default_icon
 
         try:
-            img_logo_original = Image.open(os.path.join(DATA_FOLDER_PATH, "logo_completa.png"))
+            img_logo_original = Image.open(_data_file("logo_completa.png"))
             original_width, original_height = img_logo_original.size
             max_width = 500
             ratio = max_width / float(original_width)
@@ -215,9 +216,9 @@ class App(ttk.Window):
 
     def load_profile_picture(self, foto_path, size=PROFILE_PIC_SIZE, is_dev_preview=False):
         try:
-            path_completo = os.path.join(DATA_FOLDER_PATH, foto_path)
+            path_completo = paths.resolve_data_file(foto_path) if foto_path else ""
             if not os.path.exists(path_completo) or not foto_path:
-                placeholder_path = os.path.join(DATA_FOLDER_PATH, "default_profile.png")
+                placeholder_path = paths.resolve_data_file("default_profile.png")
                 img_profile = Image.open(placeholder_path)
             else:
                 img_profile = Image.open(path_completo)
@@ -247,7 +248,7 @@ class App(ttk.Window):
         if not foto_path: loaded_photo = self.default_logo_photo
         else: 
             try:
-                path_completo = os.path.join(DATA_FOLDER_PATH, foto_path)
+                path_completo = paths.resolve_data_file(foto_path)
                 if not os.path.exists(path_completo): raise FileNotFoundError
                 img_logo = Image.open(path_completo)
                 img_logo = self.fix_image_rotation(img_logo)

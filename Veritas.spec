@@ -1,7 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
+import sys
 from PyInstaller.building.datastruct import Tree
+
+def _find_spec_dir() -> str:
+    # No PyInstaller >= 6.16, __file__ pode não estar definido no escopo do .spec.
+    # Então inferimos o caminho do .spec via sys.argv.
+    for arg in reversed(sys.argv):
+        if isinstance(arg, str) and arg.lower().endswith('.spec') and os.path.exists(arg):
+            return os.path.abspath(os.path.dirname(arg))
+    return os.path.abspath(os.getcwd())
+
+SPEC_DIR = _find_spec_dir()
+DATA_DIR = os.path.join(SPEC_DIR, 'data')
 
 a = Analysis(
     ['main.py'], 
@@ -9,16 +21,7 @@ a = Analysis(
     binaries=[],
     # Empacota assets (ícones/imagens) e JSONs de base.
     # ATENÇÃO: não empacotar credenciais (data/firebase-key.json).
-    datas=[
-        Tree(
-            'data',
-            prefix='data',
-            excludes=[
-                'firebase-key.json',
-                'ultima_piada.txt',
-            ],
-        ),
-    ],
+    datas=[],
     hiddenimports=[
         'ttkbootstrap',
         'piexif',
@@ -48,6 +51,16 @@ a = Analysis(
     excludes=[],
     noarchive=False,
     optimize=0,
+)
+
+# Inclui a pasta data inteira no build (recursivo), mas exclui credenciais e cache runtime.
+a.datas += Tree(
+    DATA_DIR,
+    prefix='data',
+    excludes=[
+        'firebase-key.json',
+        'ultima_piada.txt',
+    ],
 )
 pyz = PYZ(a.pure)
 

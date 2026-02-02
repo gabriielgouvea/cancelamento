@@ -17,6 +17,8 @@ import json
 import tempfile
 from PIL import Image
 
+import paths
+
 # --- IMPORTAÇÃO CORRETA ---
 # Só precisamos do ImageKit, nada mais
 from imagekitio import ImageKit
@@ -28,27 +30,25 @@ FIREBASE_CONECTADO = False
 OFFLINE_MODE = False
 LAST_INIT_ERROR = None
 
-def _get_app_base_dir() -> str:
-    """Retorna a pasta base do app.
+APP_BASE_DIR = paths.get_exe_dir()
 
-    - Em dev: pasta do arquivo .py
-    - No executável (PyInstaller): pasta do .exe
-    """
-    if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.realpath(__file__))
+# Dados mutáveis (modo offline) devem ficar em pasta do usuário.
+DATA_FOLDER_PATH = paths.get_user_data_dir()
 
-
-APP_BASE_DIR = _get_app_base_dir()
-DATA_FOLDER_PATH = os.path.join(APP_BASE_DIR, "data")
+# Credencial deve ser fornecida fora do pacote (não embutir no instalador).
 DEFAULT_KEY_FILE_PATH = os.path.join(DATA_FOLDER_PATH, "firebase-key.json")
 TEMP_UPLOAD_PATH = os.path.join(tempfile.gettempdir(), "veritas_temp_upload.jpg")
 
 
 def _local_json_read(filename, default_value):
+    # Preferir arquivo do usuário; se não existir, tenta o empacotado (somente leitura).
     path = os.path.join(DATA_FOLDER_PATH, filename)
     if not os.path.exists(path):
-        return default_value
+        bundled_path = paths.get_resource_path('data', filename)
+        if os.path.exists(bundled_path):
+            path = bundled_path
+        else:
+            return default_value
     try:
         with open(path, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -90,7 +90,12 @@ def init_firebase():
         OFFLINE_MODE = True
         return False
 
+    # Ordem: variável de ambiente > pasta do usuário > (fallback) pasta ao lado do exe
     key_file_path = os.getenv('FIREBASE_KEY_PATH') or DEFAULT_KEY_FILE_PATH
+    if not os.path.exists(key_file_path):
+        exe_fallback = os.path.join(APP_BASE_DIR, 'data', 'firebase-key.json')
+        if os.path.exists(exe_fallback):
+            key_file_path = exe_fallback
 
     try:
         # 1. Conecta ao Firebase (RTDB)
@@ -126,7 +131,8 @@ def init_firebase():
         LAST_INIT_ERROR = (
             "Arquivo de credencial do Firebase não encontrado.\n\n"
             f"Caminho tentado:\n{key_file_path}\n\n"
-            "Dica: coloque o arquivo em 'data/firebase-key.json' ao lado do executável\n"
+            "Dica: coloque o arquivo em '%APPDATA%\\Veritas\\data\\firebase-key.json'\n"
+            "(recomendado) ou em 'data/firebase-key.json' ao lado do executável\n"
             "ou defina a variável de ambiente FIREBASE_KEY_PATH."
         )
         # --- ***** CORREÇÃO ***** ---

@@ -994,8 +994,13 @@ class ComissaoView:
             style_disclaimer = ParagraphStyle('Disc', parent=styles['Normal'], fontSize=8, textColor=HexColor("#c0392b"), alignment=TA_CENTER, spaceBefore=5)
             
             # 1. Logo e Cabeçalho
-            logo_path = os.path.join(self.app.DATA_FOLDER_PATH, "logo_completa.png")
-            if os.path.exists(logo_path):
+            # Preferir logo na pasta do usuário; fallback para a empacotada (PyInstaller).
+            logo_candidates = [
+                os.path.join(self.app.DATA_FOLDER_PATH, "logo_completa.png"),
+                os.path.join(getattr(self.app, 'RESOURCE_DATA_FOLDER_PATH', self.app.DATA_FOLDER_PATH), "logo_completa.png"),
+            ]
+            logo_path = next((p for p in logo_candidates if os.path.exists(p)), None)
+            if logo_path:
                 im = PDFImage(logo_path, width=4*cm, height=1.5*cm) 
                 im.hAlign = 'LEFT'
                 elements.append(im)
