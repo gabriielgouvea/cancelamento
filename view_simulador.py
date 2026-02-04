@@ -39,6 +39,7 @@ class SimuladorView:
         
         # Variável para o resultado do popup customizado
         self.popup_plano_valor = None 
+        self.isencao_proxima = False
 
         # --- Início: Código de create_cancellation_view ---
         
@@ -301,14 +302,21 @@ class SimuladorView:
 
         def focar_data():
             try:
-                self.entry_data_inicio.focus_set()
+                self.entry_data_inicio.config(state='normal')
+                self.entry_data_inicio.focus_force()
+                self.entry_data_inicio.delete(0, 'end')
+                self.entry_data_inicio.insert(0, data_inicio.strftime('%d/%m/%Y'))
                 self.entry_data_inicio.selection_range(0, 'end')
             except Exception:
                 pass
 
         def ok():
-            popup.destroy()
-            focar_data()
+            try:
+                popup.grab_release()
+                popup.destroy()
+                self.app.after(200, focar_data)
+            except Exception:
+                pass
 
         btn_ok = ttk.Button(
             frame_btn,
@@ -331,6 +339,9 @@ class SimuladorView:
 
     def do_calculation(self):
         """Função de cálculo (ATUALIZADA)."""
+        # Reinicia o estado da isenção sempre que clicar em Calcular
+        self.isencao_proxima = False
+        
         data_inicio_str = self.entry_data_inicio.get()
         try:
             dia, mes, ano = map(int, data_inicio_str.split('/'))
@@ -392,6 +403,9 @@ class SimuladorView:
             kwargs = {}
             if valor_override is not None:
                 kwargs['valor_mensalidade_override'] = valor_override
+            
+            # INJEÇÃO: Passa o estado atual do botão de isenção
+            kwargs['isencao_proxima'] = self.isencao_proxima
 
             # 3. Chama a lógica com o parâmetro extra
             self.calculo_resultado = logica_de_calculo(
@@ -399,7 +413,7 @@ class SimuladorView:
                 tipo_plano, 
                 parcelas_atrasadas_str, 
                 pagamento_hoje_status,
-                **kwargs  # <--- Passa o valor_override para a função
+                **kwargs
             )
 
             for widget in self.frame_resultado.winfo_children():
@@ -426,8 +440,28 @@ class SimuladorView:
             ttk.Label(self.frame_resultado, text=f"Plano: {self.calculo_resultado['plano']} (R$ {self.calculo_resultado['valor_plano']:.2f})").pack(fill='x', anchor='w')
             ttk.Label(self.frame_resultado, text=f"Início do Contrato: {self.calculo_resultado['data_inicio_contrato'].strftime('%d/%m/%Y')}").pack(fill='x', anchor='w')
             ttk.Separator(self.frame_resultado).pack(fill='x', pady=5)
+            
             ttk.Label(self.frame_resultado, text=f"Valor por parcelas em atraso ({self.calculo_resultado['parcelas_atrasadas_qtd']}x): R$ {self.calculo_resultado['valor_atrasado']:.2f}", font=self.app.FONT_BOLD).pack(fill='x', anchor='w')
-            ttk.Label(self.frame_resultado, text=f"Mensalidade a vencer: {self.calculo_resultado['linha_mensalidade_a_vencer']}", font=self.app.FONT_BOLD).pack(fill='x', anchor='w')
+            
+            # --- MUDANÇA: Frame para conter LABEL + BOTÃO lad a lado
+            frame_venc = ttk.Frame(self.frame_resultado)
+            frame_venc.pack(fill='x', anchor='w')
+            
+            ttk.Label(frame_venc, text=f"Mensalidade a vencer: {self.calculo_resultado['linha_mensalidade_a_vencer']}", font=self.app.FONT_BOLD).pack(side='left')
+            
+            # Se a lógica detectar que caiu na regra dos 30 dias (mesmo que esteja isento agora), mostra o botão de toggle
+            if self.calculo_resultado.get('caiu_regra_30_dias', False):
+                
+                def toggle():
+                    self.isencao_proxima = not self.isencao_proxima
+                    processar_calculo(pagamento_hoje_status)
+                
+                txt = "Voltar a Cobrar" if self.isencao_proxima else "Isentar próxima mensalidade"
+                estilo = "danger.Outline.TButton" if self.isencao_proxima else "info.Outline.TButton"
+                
+                ttk.Button(frame_venc, text=txt, command=toggle, style=estilo, width=28).pack(side='left', padx=15)
+            # -------------------------------------------------------------
+            
             # A multa aqui será calculada em cima dos 359, como pedido
             ttk.Label(self.frame_resultado, text=f"Multa contratual (10% sobre {self.calculo_resultado['meses_para_multa']} meses): R$ {self.calculo_resultado['valor_multa']:.2f}", font=self.app.FONT_BOLD).pack(fill='x', anchor='w')
             ttk.Separator(self.frame_resultado).pack(fill='x', pady=5)

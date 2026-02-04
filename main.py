@@ -7,7 +7,8 @@ Descrição: Este é o arquivo principal que executa o aplicativo.
 """
 
 import ttkbootstrap as ttk
-from ttkbootstrap.widgets import DateEntry, ToastNotification
+from ttkbootstrap.widgets import DateEntry
+from ttkbootstrap.toast import ToastNotification
 from tkinter import messagebox, Toplevel, Entry, Button, StringVar, \
     PhotoImage, Listbox, filedialog, END, ANCHOR
 from tkinter import ttk as standard_ttk 
@@ -59,8 +60,8 @@ from app_utils import formatar_data
 import shutil
 
 # --- Variáveis Globais e Constantes ---
-APP_VERSION = "5.0.6"
-VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/cancelamento/main/version.json"
+APP_VERSION = "5.0.7"
+VERSION_URL = "https://raw.githubusercontent.com/gabriielgouvea/veritas/main/version.json"
 RESOURCE_DATA_FOLDER_PATH = paths.get_resource_path("data")
 USER_DATA_FOLDER_PATH = paths.get_user_data_dir()
 DATA_FOLDER_PATH = USER_DATA_FOLDER_PATH

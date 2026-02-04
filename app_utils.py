@@ -148,10 +148,19 @@ def logica_de_calculo(data_inicio, tipo_plano_str, parcelas_em_atraso_str, pagam
                 linha_mensalidade_adicional = f"R$ {valor_mensalidade_real:.2f} (referente a hoje - {data_hoje.strftime('%d/%m/%Y')})"
         else:
             dias_para_vencimento = (proximo_vencimento - data_hoje).days
-            if 0 < dias_para_vencimento <= 30:
+            
+            # Verifica se CAI na regra dos 30 dias (independente de estar isento ou não)
+            caiu_regra_30_dias = (0 < dias_para_vencimento <= 30)
+            
+            # Só cobra se caiu na regra E NÃO foi solicitado isenção
+            if caiu_regra_30_dias and not kwargs.get('isencao_proxima', False):
                 valor_mensalidade_adicional = valor_mensalidade_real # Usa valor REAL
                 meses_a_pagar_adiantado = 1
                 linha_mensalidade_adicional = f"R$ {valor_mensalidade_real:.2f} (em {dias_para_vencimento} dias - {proximo_vencimento.strftime('%d/%m/%Y')})"
+            
+            # Se caiu na regra, mas foi isento, registramos que "caiu mas não cobrou"
+            elif caiu_regra_30_dias and kwargs.get('isencao_proxima', False):
+                 linha_mensalidade_adicional = "Isento (Regra 30 dias ignorada)"
 
         meses_restantes_contrato = duracao_plano - meses_efetivamente_pagos
         is_due_date_scenario = data_hoje.day == data_inicio.day and data_hoje >= data_inicio
@@ -172,6 +181,7 @@ def logica_de_calculo(data_inicio, tipo_plano_str, parcelas_em_atraso_str, pagam
         elif meses_a_pagar_adiantado > 0:
             data_acesso_final = proximo_vencimento + relativedelta(months=1, days=-1)
         else:
+            # Se não pagou adiantado (seja porque não caiu na regra, ou porque foi ISENTO), o acesso termina antes
             data_acesso_final = proximo_vencimento + relativedelta(days=-1)
 
         return {
@@ -187,7 +197,9 @@ def logica_de_calculo(data_inicio, tipo_plano_str, parcelas_em_atraso_str, pagam
             'total_a_pagar': total_a_pagar,
             'data_acesso_final': data_acesso_final,
             'valor_proxima_parcela': valor_mensalidade_adicional,
-            'vencimento_proxima': proximo_vencimento.strftime('%d/%m/%Y') if valor_mensalidade_adicional > 0 else "Não se aplica"
+            'vencimento_proxima': proximo_vencimento.strftime('%d/%m/%Y') if valor_mensalidade_adicional > 0 else "Não se aplica",
+            # Flag nova para UI saber se deve mostrar botão
+            'caiu_regra_30_dias': (0 < (proximo_vencimento - data_hoje).days <= 30) if data_hoje.day != data_inicio.day else False
         }
     except Exception as e:
         import traceback
