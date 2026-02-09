@@ -205,3 +205,88 @@ def logica_de_calculo(data_inicio, tipo_plano_str, parcelas_em_atraso_str, pagam
         import traceback
         print(traceback.format_exc())
         return {'erro_geral': f"Erro no cálculo. Verifique os dados.\nDetalhe: {e}"}
+
+
+def _contar_meses_entre_datas(data_inicio, data_fim):
+    """Conta quantos vencimentos mensais ocorreram entre duas datas (inclusive fim)."""
+    if data_fim <= data_inicio:
+        return 0
+    contador = 0
+    proximo = data_inicio + relativedelta(months=1)
+    while proximo <= data_fim:
+        contador += 1
+        proximo += relativedelta(months=1)
+    return contador
+
+
+def _contar_meses_pagos(data_inicio, data_ultimo_pagamento):
+    """Conta quantos meses foram pagos, contando o primeiro mês."""
+    if data_ultimo_pagamento < data_inicio:
+        return 0
+    contador = 1
+    proximo = data_inicio + relativedelta(months=1)
+    while proximo <= data_ultimo_pagamento:
+        contador += 1
+        proximo += relativedelta(months=1)
+    return contador
+
+
+def calcular_renegociacao(data_inicio, data_ultimo_pagamento, tipo_plano_str, **kwargs):
+    """
+    Calcula os dados de renegociação (cancelamento ou plano novo).
+
+    **kwargs pode incluir:
+    - valor_mensalidade_override: (float) Usado para o novo plano de R$389.
+    """
+    try:
+        data_hoje = date.today()
+
+        if data_inicio < date(2024, 10, 1):
+            return {'erro_data': "A data de início não pode ser anterior a Outubro de 2024."}
+
+        if data_inicio > data_hoje:
+            return {'erro_data': "A data de início não pode ser futura."}
+
+        if data_ultimo_pagamento > data_hoje:
+            return {'erro_data': "A data da última mensalidade paga não pode ser futura."}
+
+        if data_ultimo_pagamento < data_inicio:
+            return {'erro_data': "A última mensalidade paga não pode ser anterior ao início do contrato."}
+
+        plano_selecionado = PLANOS[tipo_plano_str]
+        valor_mensalidade_base = plano_selecionado['valor']
+        duracao_plano = plano_selecionado['duracao']
+
+        valor_mensalidade_override = kwargs.get('valor_mensalidade_override', None)
+        valor_mensalidade_real = valor_mensalidade_override if valor_mensalidade_override is not None else valor_mensalidade_base
+
+        if tipo_plano_str == 'Anual (12 meses)':
+            valor_para_multa = valor_mensalidade_base
+        else:
+            valor_para_multa = valor_mensalidade_real
+
+        meses_utilizados = _contar_meses_pagos(data_inicio, data_ultimo_pagamento)
+        meses_utilizados = min(meses_utilizados, duracao_plano)
+        meses_restantes = max(0, duracao_plano - meses_utilizados)
+
+        parcelas_abonadas_qtd = _contar_meses_entre_datas(data_ultimo_pagamento, data_hoje)
+        valor_abonado = parcelas_abonadas_qtd * valor_mensalidade_real
+
+        valor_multa = (meses_restantes * valor_para_multa) * 0.10
+
+        return {
+            'data_simulacao': data_hoje,
+            'plano': tipo_plano_str,
+            'valor_plano': valor_mensalidade_real,
+            'data_inicio_contrato': data_inicio,
+            'data_ultimo_pagamento': data_ultimo_pagamento,
+            'meses_utilizados': meses_utilizados,
+            'meses_restantes': meses_restantes,
+            'parcelas_abonadas_qtd': parcelas_abonadas_qtd,
+            'valor_abonado': valor_abonado,
+            'valor_multa': valor_multa,
+        }
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return {'erro_geral': f"Erro no cálculo. Verifique os dados.\nDetalhe: {e}"}

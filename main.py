@@ -47,6 +47,7 @@ except ImportError as e:
 
 # --- Importa as novas Views (Telas) ---
 from view_simulador import SimuladorView
+from view_renegociacao import RenegociacaoView
 from view_comissao import ComissaoView
 from view_folgas import FolgasView
 from view_liberacoes import LiberacoesView
@@ -199,6 +200,7 @@ class App(ttk.Window):
 
         try:
             self.icon_simulador = ImageTk.PhotoImage(Image.open(_data_file("calculator.png")).resize(ICON_SIZE))
+            self.icon_renegociacao = self.icon_simulador
             self.icon_comissao = ImageTk.PhotoImage(Image.open(_data_file("commission.png")).resize(ICON_SIZE))
             self.icon_folgas = ImageTk.PhotoImage(Image.open(_data_file("days_off.png")).resize(ICON_SIZE))
             self.icon_updates = ImageTk.PhotoImage(Image.open(_data_file("updates.png")).resize(ICON_SIZE))
@@ -209,7 +211,7 @@ class App(ttk.Window):
             self.icon_dinheiro = ImageTk.PhotoImage(Image.open(_data_file("money.png")).resize(ICON_SIZE))
         except Exception as e:
             messagebox.showerror("Erro ao Carregar Ícones", f"Não foi possível carregar alguns ícones da pasta 'data'.\n\nErro: {e}")
-            self.icon_simulador = self.icon_comissao = self.icon_folgas = self.default_icon
+            self.icon_simulador = self.icon_renegociacao = self.icon_comissao = self.icon_folgas = self.default_icon
             self.icon_updates = self.icon_developer = self.icon_liberacoes = self.default_icon
             self.icon_lostfound = self.default_icon
             self.icon_notinhas = self.default_icon
@@ -319,17 +321,18 @@ class App(ttk.Window):
         self.nav_buttons = {}
 
         self.create_nav_button(self.sidebar_frame, 2, "Simulador", "simulador", self.icon_simulador, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 3, "Contagem Notinhas", "notinhas", self.icon_notinhas, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 4, "Contagem Dinheiro", "dinheiro", self.icon_dinheiro, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 5, "Calculadora Comissão", "comissao", self.icon_comissao, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 6, "Folgas", "folgas", self.icon_folgas, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 7, "Liberações", "liberacoes", self.icon_liberacoes, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 8, "Achados e Perdidos", "achados", self.icon_lostfound, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 9, "Área do Desenvolvedor", "developer", self.icon_developer, self.on_nav_select)
-        self.create_nav_button(self.sidebar_frame, 10, "Verificar Atualizações", "updates", self.icon_updates, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 3, "Renegociacao", "renegociacao", self.icon_renegociacao, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 4, "Contagem Notinhas", "notinhas", self.icon_notinhas, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 5, "Contagem Dinheiro", "dinheiro", self.icon_dinheiro, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 6, "Calculadora Comissão", "comissao", self.icon_comissao, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 7, "Folgas", "folgas", self.icon_folgas, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 8, "Liberações", "liberacoes", self.icon_liberacoes, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 9, "Achados e Perdidos", "achados", self.icon_lostfound, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 10, "Área do Desenvolvedor", "developer", self.icon_developer, self.on_nav_select)
+        self.create_nav_button(self.sidebar_frame, 11, "Verificar Atualizações", "updates", self.icon_updates, self.on_nav_select)
         
-        self.sidebar_frame.grid_rowconfigure(11, weight=1) 
-        ttk.Separator(self.sidebar_frame).grid(row=12, column=0, sticky='sew', padx=10, pady=10) 
+        self.sidebar_frame.grid_rowconfigure(12, weight=1) 
+        ttk.Separator(self.sidebar_frame).grid(row=13, column=0, sticky='sew', padx=10, pady=10) 
 
     def on_nav_select(self):
         view_name = self.nav_var.get()
@@ -371,6 +374,7 @@ class App(ttk.Window):
         
         view = None 
         if view_name == "simulador": view = SimuladorView(self, self.main_frame)
+        elif view_name == "renegociacao": view = RenegociacaoView(self, self.main_frame)
         elif view_name == "notinhas": view = NotinhasView(self, self.main_frame)
         elif view_name == "dinheiro": view = DinheiroView(self, self.main_frame)
         elif view_name == "comissao": view = ComissaoView(self, self.main_frame)
